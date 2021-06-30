@@ -5,7 +5,7 @@ from controller.command_queue import command_queue
 from utils.const_command import const_command
 from config.datasolt import datasolt
 from config.timer import timer
-from topo.topobuilder import topobulider
+from topo.topobuilder import topobulider, sw_dr
 from namespace.nsbuilder import nsbuilder
 
 
@@ -33,11 +33,19 @@ class controller:
             elif(command[0] == const_command.cli_stop_ping):
                 nsbuilder.stop()
 
-            elif(command[0] == const_command.cli_sw_reload):
+            elif(command[0] == const_command.cli_sw_shutdown):
+                sw_dr.disable_sw(command[1])
+
+            elif(command[0] == const_command.cli_sw_recover):
+                sw_dr.enable_sw[command[1]]
+                
+            elif(command[0] == const_command.cli_ctrl_shutdown):
                 pass
-            elif(command[0] == const_command.cli_ctrl_reload):
+            elif(command[0] == const_command.cli_ctrl_recover):
                 pass
-            elif(command[0] == const_command.cli_db_reload):
+            elif(command[0] == const_command.cli_db_shutdown):
+                pass
+            elif(command[0] == const_command.cli_db_recover):
                 pass
 
             elif(command[0] == const_command.cli_stop_all):

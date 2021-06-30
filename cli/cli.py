@@ -18,10 +18,13 @@ class cli:
                     "> 0.run topo\n"
                     "> 1.run service(ping)\n"
                     "> 2.stop service(ping)\n"
-                    "> 3.switch down and reload test + switch number(0 ~ 66)\n"
-                    "> 4.controller down and reload test + controller number(0 ~ 15)\n"
-                    "> 5.database down and reload test + database number(0 ~ 3)\n"
-                    "> 6.stop all and exit\n"
+                    "> 3.switch shutdown test + switch number(0 ~ 66)\n"
+                    "> 4.switch recover test + switch number(0 ~ 66)\n"
+                    "> 5.controller shutdown test + controller number(0 ~ 15)\n"
+                    "> 6.controller recover test + controller number(0 ~ 15)\n"
+                    "> 7.database shutdown test + database number(0 ~ 3)\n"
+                    "> 8.database recover test + database number(0 ~ 3)\n"
+                    "> 9.stop all and exit\n"
                     )
 
                 command = input(">Input commands:").strip()

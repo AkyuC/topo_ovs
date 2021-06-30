@@ -9,7 +9,9 @@ class topobulider:
     @staticmethod
     def change_slot_sw(cslot:Dict):
         for sw in cslot:
+            if sw in sw_dr.sw_disable_set: continue     # 实效的卫星交换机
             for command in cslot[sw]:
+                if command[1] in sw_dr.sw_disable_set: continue
                 p1 = "s{}-s{}".format(sw, command[1])
                 p2 = "s{}-s{}".format(command[1], sw)
                 if(command[0] == 0):
@@ -152,3 +154,37 @@ class topobulider:
         ovs_name = "s{}".format(switch_id)
         os.system("sudo ovs-vsctl del-br {} ".format(ovs_name))
         os.system("echo \"delete a switch s{} done\"".format(switch_id))
+
+class sw_dr:
+    # 卫星交换机的容灾
+    sw_disable_set = Set()  # 实效的卫星交换机
+
+    @staticmethod
+    def disable_sw(id, dataslot:Dict):
+        # 使sw失效
+        sw_dr.sw_disable_set.add(id)
+        # 先删除与交换机的链路
+        for links in dataslot[id]:
+            for link in links:
+                p1 = "s{}-s{}".format(id, link[0])
+                p2 = "s{}-s{}".format(link[0], id)
+                if((p1, p2) in topobulider.veth_set):
+                    topobulider.del_veth(p1, p2)
+                elif((p2, p1) in topobulider.veth_set):
+                    topobulider.del_veth(p2, p1)
+        # 再删除交换机
+        topobulider.del_ovs_switch(id)
+    
+    @staticmethod
+    def enable_sw(id, dataslot:Dict):
+        # 使能sw
+        sw_dr.sw_disable_set.remove(id)
+        topobulider.add_ovs_switch(id)
+        # 添加交换机的链路
+        for links in dataslot[id]:
+            for link in links:
+                p1 = "s{}-s{}".format(id, link[0])
+                p2 = "s{}-s{}".format(link[0], id)
+                topobulider.add_veth(p1,p2, link[1]*1000)
+                os.system("sudo ovs-vsctl add-port s{} {}".format(id, p1))
+                os.system("sudo ovs-vsctl add-port s{} {}".format(link[0], p2))

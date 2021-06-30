@@ -17,9 +17,12 @@ def const_command_load():
     const_command.cli_run_topo = 0
     const_command.cli_run_ping = 1
     const_command.cli_stop_ping = 2
-    const_command.cli_sw_reload = 3
-    const_command.cli_ctrl_reload = 4
-    const_command.cli_db_reload = 5
-    const_command.cli_stop_all = 6
+    const_command.cli_sw_shutdown = 3
+    const_command.cli_sw_recover = 4
+    const_command.cli_ctrl_shutdown = 5
+    const_command.cli_ctrl_recover = 6
+    const_command.cli_db_shutdown = 7
+    const_command.cli_db_recover = 8
+    const_command.cli_stop_all = 9
     # timer定时器切换命令
-    const_command.timer_diff = 7
+    const_command.timer_diff = 10
