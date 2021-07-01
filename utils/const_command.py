@@ -15,8 +15,8 @@ def const_command_load():
     # 命令常量定义
     # cli命令
     const_command.cli_run_topo = 0
-    const_command.cli_run_ping = 1
-    const_command.cli_stop_ping = 2
+    const_command.cli_run_iperf = 1
+    const_command.cli_stop_iperf = 2
     const_command.cli_sw_shutdown = 3
     const_command.cli_sw_recover = 4
     const_command.cli_ctrl_shutdown = 5

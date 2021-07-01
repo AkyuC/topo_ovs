@@ -29,20 +29,22 @@ class nsbuilder:
         nsbuilder.ns_set.clear()
 
     @staticmethod
-    def __random_ping_period():
+    def __random_iperf_period():
         if(nsbuilder.is_stoped):
             return False
         rs = random.sample(list(nsbuilder.ns_set, 2))
-        os.system("ip netns exec {} ping -c 30 192.168.66.{}".format(rs[0], rs[1][1:-1]))
-        Timer(1, nsbuilder.__random_ping_period).start()
+        os.system("ip netns exec {} iperf -u -s".format(rs[0]))
+        os.system("ip netns exec {} iperf -u -c 192.168.66.{} -b 20M -t 5"\
+            .format(rs[1], int(rs[0])))
+        Timer(1, nsbuilder.__random_iperf_period).start()
     
     @staticmethod
-    def random_ping_period():
-        # 定时随机ping
+    def random_iperf_period():
+        # 定时随机iperf
         if(not nsbuilder.is_stoped):
             return False
         nsbuilder.is_stoped = False
-        Timer(1, nsbuilder.__random_ping_period).start()
+        Timer(1, nsbuilder.__random_iperf_period).start()
 
     @staticmethod
     def stop():

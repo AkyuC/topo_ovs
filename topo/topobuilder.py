@@ -15,8 +15,8 @@ class topobulider:
                 p1 = "s{}-s{}".format(sw, command[1])
                 p2 = "s{}-s{}".format(command[1], sw)
                 if(command[0] == 0):    # 改变链路的时延距离
-                    topobulider.change_tc(p1, command[2]*1000, 10)
-                    topobulider.change_tc(p2, command[2]*1000, 10)
+                    topobulider.change_tc(p1, command[2]*1000, 1000)
+                    topobulider.change_tc(p2, command[2]*1000, 1000)
                 elif(command[0] == -1):     # 删除链路
                     if((p1, p2) in topobulider.veth_set):
                         topobulider.del_veth(p1, p2)
@@ -135,8 +135,8 @@ class topobulider:
         # add a pair of veth 添加一个veth对
         os.system("sudo ip link add {} type veth peer name {}".format(p1, p2))
         topobulider.veth_set.add((p1, p2))
-        topobulider.add_tc(p1, delay, 10)
-        topobulider.add_tc(p2, delay, 10)
+        topobulider.add_tc(p1, delay, 1000)
+        topobulider.add_tc(p2, delay, 1000)
         # os.system("echo \"add a links between {} done\"".format(p1))
 
     @staticmethod

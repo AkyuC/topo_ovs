@@ -16,8 +16,8 @@ class cli:
             try:
                 print("> Available commands(number 0~8):\n"
                     "> 0.run topo\n"
-                    "> 1.run service(ping)\n"
-                    "> 2.stop service(ping)\n"
+                    "> 1.run service(iperf)\n"
+                    "> 2.stop service(iperf)\n"
                     "> 3.switch shutdown test + switch number(0 ~ 66)\n"
                     "> 4.switch recover test + switch number(0 ~ 66)\n"
                     "> 5.controller shutdown test + controller number(0 ~ 15)\n"

@@ -23,6 +23,7 @@ class timer:
         if(not self.is_stoped):
             return False
         self.is_stoped = False
+        # 需要写入数据库目前所在的时间片
         Timer(self.time_list[self.index], self.send_timer_command).start()
 
     def stop(self):

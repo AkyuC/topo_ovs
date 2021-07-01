@@ -27,10 +27,10 @@ class controller:
                 topobulider.load_slot(self.dslot.slot0)
                 self.ctimer.start()
 
-            elif(command[0] == const_command.cli_run_ping):
-                nsbuilder.random_ping_period()
+            elif(command[0] == const_command.cli_run_iperf):
+                nsbuilder.random_iperf_period()
 
-            elif(command[0] == const_command.cli_stop_ping):
+            elif(command[0] == const_command.cli_stop_iperf):
                 nsbuilder.stop()
 
             elif(command[0] == const_command.cli_sw_shutdown):
