@@ -9,22 +9,28 @@ class topobulider:
     @staticmethod
     def change_slot_sw(cslot:Dict):
         for sw in cslot:
-            if sw in sw_dr.sw_disable_set: continue     # 实效的卫星交换机
+            if sw in sw_dr.sw_disable_set: continue     # 失效的卫星交换机
             for command in cslot[sw]:
                 if command[1] in sw_dr.sw_disable_set: continue
                 p1 = "s{}-s{}".format(sw, command[1])
                 p2 = "s{}-s{}".format(command[1], sw)
-                if(command[0] == 0):
+                if(command[0] == 0):    # 改变链路的时延距离
                     topobulider.change_tc(p1, command[2]*1000, 10)
                     topobulider.change_tc(p2, command[2]*1000, 10)
-                elif(command[0] == -1):
+                elif(command[0] == -1):     # 删除链路
                     if((p1, p2) in topobulider.veth_set):
                         topobulider.del_veth(p1, p2)
                     elif((p2, p1) in topobulider.veth_set):
-                        topobulider.del_veth(p1, p2)
-                elif(command[0] == 1):
+                        topobulider.del_veth(p2, p1)
+                    os.system("sudo ovs-vsctl del-port s{} {}".format(sw, p1))
+                    os.system("sudo ovs-vsctl del-port s{} {}".format(command[1], p2))
+                elif(command[0] == 1):  # 添加链路
                     if(((p1, p2) not in topobulider.veth_set) and ((p2, p1) not in topobulider.veth_set)):
                         topobulider.add_veth(p1, p2, command[2]*1000)
+                        os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                            .format(sw, p1, p1, command[1]))
+                        os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                            .format(command[1], p2, p2, sw))
 
     @staticmethod
     def load_slot(dataslot:Dict):
@@ -36,7 +42,8 @@ class topobulider:
             p1 = "s{}-h{}".format(i, i)
             p2 = "h{}-s{}".format(i, i)
             topobulider.add_veth(p1, p2, 1)
-            os.system("sudo ovs-vsctl add-port s{} {}".format(i, p1))
+            os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                .format(i, p1, p1, (i+1000))) # 设置连接主机的openflow端口号, 1000+主机ip最后的8位
             os.system("sudo ip link set {} netns h{}".format(p2, i))
             # 设置主机ip
             os.system("sudo ip netns exec h{} addr add 192.168.66.{}/24 dev {}".format(i, i+1, p2))
@@ -49,8 +56,10 @@ class topobulider:
                 if(((p1, p2) in topobulider.veth_set) or ((p2, p1) in topobulider.veth_set)):
                     continue
                 topobulider.add_veth(p1, p2, float(dataslot[key][i][2])*1000)
-                os.system("sudo ovs-vsctl add-port s{} {}".format(key, p1))
-                os.system("sudo ovs-vsctl add-port s{} {}".format(dataslot[key][i][0], p2))
+                os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                    .format(key, p1, p1, dataslot[key][i][0]))
+                os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                    .format(dataslot[key][i][0], p2, p2, key))
 
     @staticmethod
     def del_slot() -> None:
@@ -128,7 +137,7 @@ class topobulider:
         topobulider.veth_set.add((p1, p2))
         topobulider.add_tc(p1, delay, 10)
         topobulider.add_tc(p2, delay, 10)
-        os.system("echo \"add a links between {} done\"".format(p1))
+        # os.system("echo \"add a links between {} done\"".format(p1))
 
     @staticmethod
     def del_veth(p1, p2):
@@ -136,7 +145,7 @@ class topobulider:
         topobulider.del_tc(p1)
         topobulider.del_tc(p2)
         os.system("sudo ip link delete {}".format(p1))
-        os.system("echo \"delete a links between {} done\"".format(p1))
+        # os.system("echo \"delete a links between {} done\"".format(p1))
 
     @staticmethod
     def add_ovs_switch(switch_id):
@@ -146,14 +155,14 @@ class topobulider:
             "sudo ovs-vsctl add-br {} -- set bridge {} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other-config:datapath-id={}".format(
                 ovs_name, ovs_name, switch_id))
         topobulider.sw_set.add(switch_id)
-        os.system("echo \"add a switch s{} done\"".format(switch_id))
+        # os.system("echo \"add a switch s{} done\"".format(switch_id))
 
     @staticmethod
     def del_ovs_switch(switch_id):
         # delete a switch from net 删除一个ovs交换机
         ovs_name = "s{}".format(switch_id)
         os.system("sudo ovs-vsctl del-br {} ".format(ovs_name))
-        os.system("echo \"delete a switch s{} done\"".format(switch_id))
+        # os.system("echo \"delete a switch s{} done\"".format(switch_id))
 
 class sw_dr:
     # 卫星交换机的容灾
@@ -186,5 +195,7 @@ class sw_dr:
                 p1 = "s{}-s{}".format(id, link[0])
                 p2 = "s{}-s{}".format(link[0], id)
                 topobulider.add_veth(p1,p2, link[1]*1000)
-                os.system("sudo ovs-vsctl add-port s{} {}".format(id, p1))
-                os.system("sudo ovs-vsctl add-port s{} {}".format(link[0], p2))
+                os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                    .format(id, p1, p1, link[0]))
+                os.system("sudo ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
+                    .format(link[0], p2, p2, id))
