@@ -3,20 +3,21 @@ from threading import Thread
 from typing import Dict
 from controller.command_queue import command_queue
 from utils.const_command import const_command
-from config.datasolt import datasolt
+from config.swsolt import swsolt
 from config.timer import timer
 from topo.topobuilder import topobulider, sw_dr
-from namespace.nsbuilder import nsbuilder
+from topo.flowbuilder import flowbuilder
+from config.ctrlslot import ctrlslot
 
 
 class controller:
     def __init__(self, filePath:str) -> None:
-        # 获取第一个时间片和时间片之间的不同连接关系
-        self.dslot = datasolt()
-        self.dslot.start(filePath)
+        # 加载卫星交换机拓扑
+        self.dslot = swsolt(filePath + '/config/timeslot')
+        # 加载openmul控制器
+        self.cslot = ctrlslot(filePath + '/config/ctrl_deploy')
         # 加载时间片序列
-        self.ctimer = timer()
-        self.ctimer.load_time_seq(filePath + '/timeslot/timefile')
+        self.ctimer = timer(filePath + '/config/timeslot/timefile')
 
     def __do_start(self):
         # 控制器从消息队列中获取指令，并且执行对应的函数
@@ -24,14 +25,15 @@ class controller:
             command = command_queue.read_queue_wait()
 
             if(command[0] == const_command.cli_run_topo):
-                topobulider.load_slot(self.dslot.slot0)
+                topobulider.load_slot(self.dslot.data_slot[0])
+                topobulider.load_ctrl(self.cslot.ctrl_slot[0])
                 self.ctimer.start()
 
             elif(command[0] == const_command.cli_run_iperf):
-                nsbuilder.random_iperf_period()
+                flowbuilder.random_iperf_period(len(topobulider.sw_set))
 
             elif(command[0] == const_command.cli_stop_iperf):
-                nsbuilder.stop()
+                flowbuilder.stop()
 
             elif(command[0] == const_command.cli_sw_shutdown):
                 sw_dr.disable_sw(command[1])
@@ -53,6 +55,7 @@ class controller:
 
             elif(command[0] ==  const_command.timer_diff):
                 topobulider.change_slot_sw(self.dslot.data_slot[self.ctimer.index])
+                topobulider.change_slot_ctrl(self.cslot.ctrl_slot[self.ctimer.index], self.cslot.ctrl_slot[self.ctimer.index + 1])                    
     
     def start(self):
         # 开启线程

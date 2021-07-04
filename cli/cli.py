@@ -27,7 +27,7 @@ class cli:
                     "> 9.stop all and exit\n"
                     )
 
-                command = input(">Input commands:").strip()
+                command = input(">Input commands:").split()
                 if len(command) == 0 or not float(command[0]):
                     os.system("clear")
                     continue

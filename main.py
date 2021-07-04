@@ -3,6 +3,8 @@ from cli.cli import cli
 from utils.const_command import const_command
 from controller.controller import controller
 
+
+# host的ip为192.168.66.x，控制器的ip为192.168.67.x，数据库的ip为192.168.68.x
 if __name__ == '__main' :
     # 加载命令常量
     sys.modules[__name__] = const_command()
