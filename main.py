@@ -1,16 +1,16 @@
-import sys
+import os, sys
 from cli.cli import cli
 from utils.const_command import const_command
 from controller.controller import controller
 
 
 # host的ip为192.168.66.x，控制器的ip为192.168.67.x，数据库的ip为192.168.68.x
-if __name__ == '__main' :
+if __name__ == '__main__' :
     # 加载命令常量
     sys.modules[__name__] = const_command()
 
     #获取当前文件路径，读取配置文件需要
-    filePath = sys.argv[0]
+    filePath = os.path.dirname(__file__)
 
     # 控制调度器加载
     ctrl = controller(filePath)
