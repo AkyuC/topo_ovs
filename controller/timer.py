@@ -1,6 +1,6 @@
-from controller.command_queue import command_queue
+from .command_queue import command_queue
 from threading import Timer
-from utils.const_command import const_command
+from ..utils import const_command
 
 # 定时切换
 class timer:

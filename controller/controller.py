@@ -1,15 +1,31 @@
-import os
 from threading import Thread
-from controller.command_queue import command_queue
-from utils.const_command import const_command
-from config.swsolt import swsolt
-from config.timer import timer
-from topo.topobuilder import topobulider, sw_dr
-from topo.flowbuilder import flowbuilder
-from config.ctrlslot import ctrlslot
-from config.dbload import dbload
-from topo.rt_default import rt_ctrl2db,rt_ctrl2sw,rt_db2db,rt_sw2sw
+from .command_queue import command_queue
+from .timer import timer
+from ..utils import const_command
+from ..config import swsolt,ctrlslot,dbload
+from ..topo.flowbuilder import flowbuilder
+from ..topo.topobuilder import topobuilder,sw_dr
+from ..config.rt_ctrl2db import rt_ctrl2db
+from ..config.rt_ctrl2sw import rt_ctrl2sw
+from ..config.rt_db2db import rt_db2db
+from ..config.rt_sw2sw import rt_sw2sw
 
+
+def load_command():
+    # 命令常量定义
+    # cli命令
+    const_command.cli_run_topo = 0
+    const_command.cli_run_iperf = 1
+    const_command.cli_stop_iperf = 2
+    const_command.cli_sw_shutdown = 3
+    const_command.cli_sw_recover = 4
+    const_command.cli_ctrl_shutdown = 5
+    const_command.cli_ctrl_recover = 6
+    const_command.cli_db_shutdown = 7
+    const_command.cli_db_recover = 8
+    const_command.cli_stop_all = 9
+    # timer定时器切换命令
+    const_command.timer_diff = 10
 
 class controller:
     def __init__(self, filePath:str) -> None:
@@ -22,14 +38,16 @@ class controller:
         # 加载时间片序列
         self.ctimer = timer(filePath + '/config/timeslot/timefile')
         # 初始化拓扑
-        topobulider.load_slot(self.dslot.data_slot[0])
-        topobulider.load_ctrl(self.cslot.ctrl_slot[0])
-        topobulider.load_db(self.dbdata.db_data)
+        topobuilder.load_slot(self.dslot.data_slot[0])
+        topobuilder.load_ctrl(self.cslot.ctrl_slot[0])
+        topobuilder.load_db(self.dbdata.db_data)
         # 初始化默认流表
         self.rt_ctrl2db = rt_ctrl2db(filePath + '/config/rt_ctrl2db')
         self.rt_ctrl2sw = rt_ctrl2sw(filePath + '/config/rt_ctrl2sw')
         self.rt_db2db = rt_db2db(filePath + '/config/rt_db2db')
         self.rt_sw2sw = rt_sw2sw(filePath + '/config/rt_sw2sw')
+        # 加载指令
+        load_command()
 
     def __do_start(self):
         # 控制器从消息队列中获取指令，并且执行对应的函数
@@ -44,7 +62,7 @@ class controller:
                 self.ctimer.start()
 
             elif(command[0] == const_command.cli_run_iperf):
-                flowbuilder.random_iperf_period(len(topobulider.sw_set))
+                flowbuilder.random_iperf_period(len(topobuilder.sw_set))
 
             elif(command[0] == const_command.cli_stop_iperf):
                 flowbuilder.stop()
@@ -69,14 +87,14 @@ class controller:
 
             elif(command[0] ==  const_command.timer_diff):
                 index = self.ctimer.index   # 获取当前的时间片
-                topobulider.change_slot_ctrl(self.cslot.ctrl_slot[index], self.cslot.ctrl_slot[index + 1])  # 切换控制器
+                topobuilder.change_slot_ctrl(self.cslot.ctrl_slot[index], self.cslot.ctrl_slot[index + 1])  # 切换控制器
                 # 先是删除下个时间片没有的默认路由
                 rt_ctrl2db.delete_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_diff[index], self.rt_ctrl2db.rt_db2ctrl_diff[index])
                 rt_ctrl2sw.delete_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_diff[index], self.rt_ctrl2sw.rt_sw2ctrl_diff[index])
                 rt_db2db.delete_rt_db2db(self.rt_db2db.rt_db2db_diff[index])
                 rt_sw2sw.delete_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_diff[index])
                 # 卫星交换机的连接切换
-                topobulider.change_slot_sw(self.dslot.data_slot[index])
+                topobuilder.change_slot_sw(self.dslot.data_slot[index])
                 # 添加新的上个时间片没有的路由
                 rt_ctrl2db.add_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_diff[index], self.rt_ctrl2db.rt_db2ctrl_diff[index])
                 rt_ctrl2sw.add_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_diff[index], self.rt_ctrl2sw.rt_sw2ctrl_diff[index])
@@ -96,4 +114,4 @@ class controller:
         # 关闭线程
         self.started = False
         self.ctimer.stop()
-        topobulider.del_slot()
+        topobuilder.del_slot()

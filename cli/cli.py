@@ -1,7 +1,7 @@
 import os
 from threading import Thread
-from controller.command_queue import command_queue
-from utils.const_command import const_command
+from ..controller import command_queue
+from ..utils import const_command
 
 
 class cli:

@@ -1,7 +1,7 @@
 import os
 
 
-class topobulider:
+class topobuilder:
     sw_set = set()  # 保存sw的dpid
     ctrl_set = set()    # 保存目前在运行的控制器
     db_set = set()
@@ -17,21 +17,21 @@ class topobulider:
                 p1 = "s{}-s{}".format(sw, command[1])
                 p2 = "s{}-s{}".format(command[1], sw)
                 if(command[0] == 0):    # 改变链路的时延距离
-                    topobulider.change_tc(p1, command[2]*1000)
-                    topobulider.change_tc(p2, command[2]*1000)
+                    topobuilder.change_tc(p1, command[2]*1000)
+                    topobuilder.change_tc(p2, command[2]*1000)
                 elif(command[0] == -1):     # 删除链路
-                    if((p1, p2) in topobulider.veth_set):
-                        topobulider.del_veth(p1, p2)
+                    if((p1, p2) in topobuilder.veth_set):
+                        topobuilder.del_veth(p1, p2)
                         os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
                         os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
-                    elif((p2, p1) in topobulider.veth_set):
-                        topobulider.del_veth(p2, p1)
+                    elif((p2, p1) in topobuilder.veth_set):
+                        topobuilder.del_veth(p2, p1)
                         os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
                         os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
                 elif(command[0] == 1):  # 添加链路
-                    if(((p1, p2) not in topobulider.veth_set) and ((p2, p1) not in topobulider.veth_set)):
-                        topobulider.add_veth(p1, p2, command[2]*1000)
-                        topobulider.load_sw_link(sw, command[1])
+                    if(((p1, p2) not in topobuilder.veth_set) and ((p2, p1) not in topobuilder.veth_set)):
+                        topobuilder.add_veth(p1, p2, command[2]*1000)
+                        topobuilder.load_sw_link(sw, command[1])
 
     @staticmethod
     def change_slot_ctrl(cslot_b:dict, cslot_n:dict):
@@ -41,12 +41,12 @@ class topobulider:
             if ctrl not in cslot_n:
                 os.system("sudo docker exec -it c{} ip link delete c{}-s{}".format(ctrl, ctrl, ctrl))
                 os.system("sudo docker stop c{}".format(ctrl))
-                topobulider.ctrl_set.remove(ctrl)
+                topobuilder.ctrl_set.remove(ctrl)
         for ctrl in cslot_n:
-            if ctrl not in topobulider.ctrl_set:
-                topobulider.ctrl_set.add(ctrl)
+            if ctrl not in topobuilder.ctrl_set:
+                topobuilder.ctrl_set.add(ctrl)
                 os.system("sudo docker start c{} > /dev/null 2>&1 &".format(ctrl))  # 启动docker
-                topobulider.load_ctrl_link(ctrl)
+                topobuilder.load_ctrl_link(ctrl)
             for sw in cslot_n[ctrl]:
                 if sw not in cslot_b[ctrl] and sw not in sw_dr.sw_disable_set:
                     os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
@@ -56,20 +56,20 @@ class topobulider:
         # load a time slot topo 加载一个时间片拓扑
         # 添加交换机
         for sw in range(len(dataslot)):
-            topobulider.add_ovs_switch(sw)
+            topobuilder.add_ovs_switch(sw)
 
         # 添加卫星交换机之间的连接
         for sw in dataslot:
             for adj_sw in dataslot[sw]:
-                topobulider.load_sw_link(sw, adj_sw, dataslot[sw][adj_sw])
+                topobuilder.load_sw_link(sw, adj_sw, dataslot[sw][adj_sw])
 
     @staticmethod
     def load_ctrl(datactrl:dict):
         # 加载一个时间片的控制器
         for ctrl in datactrl:
-            topobulider.ctrl_set.add(ctrl)
+            topobuilder.ctrl_set.add(ctrl)
             os.system("sudo docker start c{} > /dev/null 2>&1 &".format(ctrl))  # 启动docker
-            topobulider.load_ctrl_link(ctrl)
+            topobuilder.load_ctrl_link(ctrl)
             # 设置卫星交换机连接控制器
             for sw in datactrl[ctrl]:
                 os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
@@ -78,27 +78,27 @@ class topobulider:
     def load_db(dbdata:list):
         # 加载分布式数据库
         for db in dbdata:
-            topobulider.db_set.add(db)
+            topobuilder.db_set.add(db)
             os.system("sudo docker start db{} > /dev/null 2>&1 &".format(db))  # 启动docker
-            topobulider.load_db_link(db)
+            topobuilder.load_db_link(db)
     
     @staticmethod
     def del_slot() -> None:
         # 删除一个时间片拓扑，清空
-        for p in topobulider.veth_set:
-            topobulider.del_veth(p[0], p[1])
-        for s in topobulider.sw_set:
-            topobulider.del_ovs_switch(s)
-        for ctrl in topobulider.ctrl_set:
+        for p in topobuilder.veth_set:
+            topobuilder.del_veth(p[0], p[1])
+        for s in topobuilder.sw_set:
+            topobuilder.del_ovs_switch(s)
+        for ctrl in topobuilder.ctrl_set:
             os.system("sudo docker exec -it c{} ip link delete c{}-s{}".format(ctrl, ctrl, ctrl))
             os.system("sudo docker stop c{}".format(ctrl))
-        for db in topobulider.db_set:
+        for db in topobuilder.db_set:
             os.system("sudo docker exec -it db{} ip link delete db{}-s{}".format(db, db, db))
             os.system("sudo docker stop db{}".format(db))
-        topobulider.db_set.clear()
-        topobulider.ctrl_set.clear()
-        topobulider.sw_set.clear()
-        topobulider.veth_set.clear()
+        topobuilder.db_set.clear()
+        topobuilder.ctrl_set.clear()
+        topobuilder.sw_set.clear()
+        topobuilder.veth_set.clear()
     
     @staticmethod
     def del_tc(interface: str):
@@ -162,16 +162,16 @@ class topobulider:
     def add_veth(p1, p2, delay):
         # add a pair of veth 添加一个veth对
         os.system("sudo ip link add {} type veth peer name {}".format(p1, p2))
-        topobulider.veth_set.add((p1, p2))
-        topobulider.add_tc(p1, delay, 1000)
-        topobulider.add_tc(p2, delay, 1000)
+        topobuilder.veth_set.add((p1, p2))
+        topobuilder.add_tc(p1, delay, 1000)
+        topobuilder.add_tc(p2, delay, 1000)
         # os.system("echo \"add a links between {} done\"".format(p1))
 
     @staticmethod
     def del_veth(p1, p2):
         # delete a pair of veth(only need to delete one, another one will auto delete)删除一个veth对
-        topobulider.del_tc(p1)
-        topobulider.del_tc(p2)
+        topobuilder.del_tc(p1)
+        topobuilder.del_tc(p2)
         os.system("sudo ip link delete {}> /dev/null 2>&1 &".format(p1))
         os.system("sudo ip link delete {}> /dev/null 2>&1 &".format(p2))
         # os.system("echo \"delete a links between {} done\"".format(p1))
@@ -181,8 +181,8 @@ class topobulider:
         # 建立交换机之间的连接
         p1 = "s{}-s{}".format(sw1, sw2)
         p2 = "s{}-s{}".format(sw2, sw1)
-        if(((p1, p2) in topobulider.veth_set) or ((p2, p1) in topobulider.veth_set)):return
-        topobulider.add_veth(p1, p2, delay*1000)
+        if(((p1, p2) in topobuilder.veth_set) or ((p2, p1) in topobuilder.veth_set)):return
+        topobuilder.add_veth(p1, p2, delay*1000)
         os.system(r"sudo ovspid1=$(docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw1)) # 添加到docker
         os.system(r"sudo ovspid2=$(docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw2))
         os.system("sudo ip link set dev {} name {} netns $\{ovspid1\}".format(p1, p1))
@@ -199,7 +199,7 @@ class topobulider:
         # 建立控制器和交换机的本地连接
         p1 = "s{}-c{}".format(sw, sw)
         p2 = "c{}-s{}".format(sw, sw) 
-        topobulider.add_veth(p1, p2, 0) # 添加链路和端口
+        topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
         os.system(r"sudo ovspid=$(docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw)) # 添加到docker
         os.system(r"sudo ctrlpid=$(docker inspect -f '{{.State.Pid}}' " + "c{})".format(sw))
         os.system("sudo ip link set dev {} name {} netns $\{ovspid\}".format(p1, p1))
@@ -225,7 +225,7 @@ class topobulider:
         # 建立数据库和交换机之间的链路
         p1 = "s{}-db{}".format(sw, sw)
         p2 = "db{}-s{}".format(sw, sw) 
-        topobulider.add_veth(p1, p2, 0) # 添加链路和端口
+        topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
         os.system(r"sudo ovspid=$(docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw)) # 添加到docker
         os.system(r"sudo dbpid=$(docker inspect -f '{{.State.Pid}}' " + "db{})".format(sw))
         os.system("sudo ip link set dev {} name {} netns $\{ovspid\}".format(p1, p1))
@@ -263,7 +263,7 @@ class topobulider:
             .format(switch_id, switch_id, switch_id+1, switch_id+2000))
         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_dst=192.168.66.{} action=output:{}\""\
             .format(switch_id, switch_id, switch_id+1, switch_id+2000))
-        topobulider.sw_set.add(switch_id)
+        topobuilder.sw_set.add(switch_id)
         # os.system("echo \"add a switch s{} done\"".format(switch_id))
 
     @staticmethod
@@ -272,7 +272,7 @@ class topobulider:
         os.system("sudo docker exec -it s{} ovs-vsctl del-br s{} ".format(switch_id, switch_id))
         os.system("sudo docker exec -it s{} ip link delete h{}-s{}".format(switch_id, switch_id, switch_id))
         os.system("sudo docker stop s{}".format(switch_id))
-        topobulider.sw_set.remove(switch_id)
+        topobuilder.sw_set.remove(switch_id)
         # os.system("echo \"delete a switch s{} done\"".format(switch_id))
 
 
@@ -288,31 +288,31 @@ class sw_dr:
         for adj_sw in swslot[sw]:
             p1 = "s{}-s{}".format(sw, adj_sw)
             p2 = "s{}-s{}".format(adj_sw, sw)
-            if((p1, p2) in topobulider.veth_set):
-                topobulider.del_veth(p1, p2)
-            elif((p2, p1) in topobulider.veth_set):
-                topobulider.del_veth(p2, p1)
+            if((p1, p2) in topobuilder.veth_set):
+                topobuilder.del_veth(p1, p2)
+            elif((p2, p1) in topobuilder.veth_set):
+                topobuilder.del_veth(p2, p1)
         # 删除与本地连接的控制器
         if sw in cslot:
             p1 = "s{}-c{}".format(sw, sw)
             p2 = "c{}-s{}".format(sw, sw)
             os.system("sudo docker exec -it s{} ip link delete {} ".format(sw, p1))
-            topobulider.del_veth(p1, p2)
+            topobuilder.del_veth(p1, p2)
         # 再删除交换机
-        topobulider.del_ovs_switch(sw)
+        topobuilder.del_ovs_switch(sw)
     
     @staticmethod
     def enable_sw(sw, swslot:dict, cslot:dict):
         # 使能sw
         sw_dr.sw_disable_set.remove(sw)
-        topobulider.add_ovs_switch(sw)
+        topobuilder.add_ovs_switch(sw)
         # 添加交换机的链路
         for adj_sw in swslot[sw]:
-            topobulider.load_sw_link(sw, adj_sw, swslot[sw][adj_sw])
+            topobuilder.load_sw_link(sw, adj_sw, swslot[sw][adj_sw])
 
         # 连接控制器
         if sw in cslot:
-            topobulider.load_ctrl_link(sw)
+            topobuilder.load_ctrl_link(sw)
         for ctrl in cslot:
             if sw in cslot[ctrl]:
                 os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
