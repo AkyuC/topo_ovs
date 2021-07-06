@@ -1,3 +1,6 @@
+import os
+
+
 class ctrlslot:
     def __init__(self, filePath:str) -> None:
         self.slot_num = 0   # 时间片的个数
@@ -26,7 +29,6 @@ class ctrlslot:
 
 
 if __name__ == "__main__":
-    import os
     filePath = os.path.dirname(__file__)
     dslot = ctrlslot(filePath + '/ctrl_deploy')
     count_all = 0

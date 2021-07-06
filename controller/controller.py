@@ -2,13 +2,16 @@ from threading import Thread
 from .command_queue import command_queue
 from .timer import timer
 from ..utils import const_command
-from ..config import swsolt,ctrlslot,dbload
 from ..topo.flowbuilder import flowbuilder
-from ..topo.topobuilder import topobuilder,sw_dr
+from ..topo.topobuilder import topobuilder
+from ..topo.topobuilder import sw_dr
 from ..config.rt_ctrl2db import rt_ctrl2db
 from ..config.rt_ctrl2sw import rt_ctrl2sw
 from ..config.rt_db2db import rt_db2db
 from ..config.rt_sw2sw import rt_sw2sw
+from ..config.swsolt import swsolt
+from ..config.ctrlslot import ctrlslot
+from ..config.dbload import dbload
 
 
 def load_command():
