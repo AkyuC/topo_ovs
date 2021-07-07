@@ -185,8 +185,8 @@ class topobuilder:
         p2 = "s{}-s{}".format(sw2, sw1)
         if(((p1, p2) in topobuilder.veth_set) or ((p2, p1) in topobuilder.veth_set)):return
         topobuilder.add_veth(p1, p2, delay*1000)
-        os.system(r"ovspid1=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw1)) # 添加到docker
-        os.system(r"ovspid2=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw2))
+        os.system("ovspid1=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw1)) # 添加到docker
+        os.system("ovspid2=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw2))
         os.system("sudo ip link set dev {} name {} netns ${{ovspid1}}".format(p1, p1))
         os.system("sudo ip link set dev {} name {} netns ${{ovspid2}}".format(p2, p2))
         os.system("sudo ip netns exec ${{ovspid1}} ip link set dev {} up".format(p1))
@@ -202,8 +202,8 @@ class topobuilder:
         p1 = "s{}-c{}".format(sw, sw)
         p2 = "c{}-s{}".format(sw, sw) 
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
-        os.system(r"ovspid=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw)) # 添加到docker
-        os.system(r"ctrlpid=$(sudo docker inspect -f '{{.State.Pid}}' " + "c{})".format(sw))
+        os.system("ovspid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw)) # 添加到docker
+        os.system("ctrlpid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' c{})".format(sw))
         os.system("sudo ip link set dev {} name {} netns ${{ovspid}}".format(p1, p1))
         os.system("sudo ip link set dev {} name {} netns ${{ctrlpid}}".format(p2, p2))
         os.system("sudo ip netns exec ${{ovspid}} ip link set dev {} up".format(p1))
@@ -228,8 +228,8 @@ class topobuilder:
         p1 = "s{}-db{}".format(sw, sw)
         p2 = "db{}-s{}".format(sw, sw) 
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
-        os.system(r"ovspid=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw)) # 添加到docker
-        os.system(r"dbpid=$(sudo docker inspect -f '{{.State.Pid}}' " + "db{})".format(sw))
+        os.system("ovspid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw)) # 添加到docker
+        os.system("dbpid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' db{})".format(sw))
         os.system("sudo ip link set dev {} name {} netns ${{ovspid}}".format(p1, p1))
         os.system("sudo ip link set dev {} name {} netns ${{dbpid}}".format(p2, p2))
         os.system("sudo ip netns exec ${{ovspid}} ip link set dev {} up".format(p1))
