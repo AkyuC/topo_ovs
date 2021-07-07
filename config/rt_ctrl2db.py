@@ -96,18 +96,18 @@ class rt_ctrl2db:
                 # db = rt[0]
                 # sw = rt[1]
                 # port = rt[2]
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+                os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
                     .format(rt[1], rt[1], ctrl, rt[0], rt[2]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+                os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
                     .format(rt[1], rt[1], ctrl, rt[0], rt[2]))
         for db in db2ctrl:
             for rt in db2ctrl[db]:
                 # ctrl = rt[0]
                 # sw = rt[1]
                 # port = rt[2]
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+                os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
                     .format(rt[1], rt[1], db, rt[0], rt[2]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+                os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
                     .format(rt[1], rt[1], db, rt[0], rt[2]))
 
     @staticmethod
@@ -116,16 +116,16 @@ class rt_ctrl2db:
         for ctrl in ctrl2db:
             for rt in ctrl2db[ctrl]:
                 if rt[0] == -1: # 删除条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
                         .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
                         .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
         for db in db2ctrl:
             for rt in db2ctrl[db]:
                 if rt[0] == -1: # 删除条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
                         .format(rt[2], rt[2], db, rt[1], rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
                         .format(rt[2], rt[2], db, rt[1], rt[3]))
     
     @staticmethod
@@ -134,16 +134,16 @@ class rt_ctrl2db:
         for ctrl in ctrl2db:
             for rt in ctrl2db[ctrl]:
                 if rt[0] == 1: # 添加条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
                         .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
                         .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
         for db in db2ctrl:
             for rt in db2ctrl[db]:
                 if rt[0] == 1: # 添加条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
                         .format(rt[2], rt[2], db, rt[1], rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    os.system("sudo docker exec -it s{} /bin/bash ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
                         .format(rt[2], rt[2], db, rt[1], rt[3]))
 
 
