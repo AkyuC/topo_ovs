@@ -187,10 +187,10 @@ class topobuilder:
         topobuilder.add_veth(p1, p2, delay*1000)
         os.system(r"ovspid1=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw1)) # 添加到docker
         os.system(r"ovspid2=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw2))
-        os.system("sudo ip link set dev {} name {} netns $\{ovspid1\}".format(p1, p1))
-        os.system("sudo ip link set dev {} name {} netns $\{ovspid2\}".format(p2, p2))
-        os.system("sudo ip netns exec $\{ovspid1\} ip link set dev {} up".format(p1))
-        os.system("sudo ip netns exec $\{ovspid2\} ip link set dev {} up".format(p2))
+        os.system("sudo ip link set dev {} name {} netns ${{ovspid1}}".format(p1, p1))
+        os.system("sudo ip link set dev {} name {} netns ${{ovspid2}}".format(p2, p2))
+        os.system("sudo ip netns exec ${{ovspid1}} ip link set dev {} up".format(p1))
+        os.system("sudo ip netns exec ${{ovspid2}} ip link set dev {} up".format(p2))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
             .format(sw1, sw1, p1, p1, sw2+1000))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
@@ -204,11 +204,11 @@ class topobuilder:
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
         os.system(r"ovspid=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw)) # 添加到docker
         os.system(r"ctrlpid=$(sudo docker inspect -f '{{.State.Pid}}' " + "c{})".format(sw))
-        os.system("sudo ip link set dev {} name {} netns $\{ovspid\}".format(p1, p1))
-        os.system("sudo ip link set dev {} name {} netns $\{ctrlpid\}".format(p2, p2))
-        os.system("sudo ip netns exec $\{ovspid\} ip link set dev {} up".format(p1))
-        os.system("sudo ip netns exec $\{ctrlpid\} ip link set dev {} up".format(p2))
-        os.system("sudo ip netns exec $\{ctrlpid\} ip addr add 192.168.67.{} dev {}".format(sw, p2))
+        os.system("sudo ip link set dev {} name {} netns ${{ovspid}}".format(p1, p1))
+        os.system("sudo ip link set dev {} name {} netns ${{ctrlpid}}".format(p2, p2))
+        os.system("sudo ip netns exec ${{ovspid}} ip link set dev {} up".format(p1))
+        os.system("sudo ip netns exec ${{ctrlpid}} ip link set dev {} up".format(p2))
+        os.system("sudo ip netns exec ${{ctrlpid}} ip addr add 192.168.67.{} dev {}".format(sw, p2))
         os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null 2>&1 &"\
             .format(sw))
         # 设置控制器的默认路由
@@ -230,11 +230,11 @@ class topobuilder:
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
         os.system(r"ovspid=$(sudo docker inspect -f '{{.State.Pid}}' " + "s{})".format(sw)) # 添加到docker
         os.system(r"dbpid=$(sudo docker inspect -f '{{.State.Pid}}' " + "db{})".format(sw))
-        os.system("sudo ip link set dev {} name {} netns $\{ovspid\}".format(p1, p1))
-        os.system("sudo ip link set dev {} name {} netns $\{dbpid\}".format(p2, p2))
-        os.system("sudo ip netns exec $\{ovspid\} ip link set dev {} up".format(p1))
-        os.system("sudo ip netns exec $\{dbpid\} ip link set dev {} up".format(p2))
-        os.system("sudo ip netns exec $\{dbpid\} ip addr add 192.168.68.{} dev {}".format(sw, p2))
+        os.system("sudo ip link set dev {} name {} netns ${{ovspid}}".format(p1, p1))
+        os.system("sudo ip link set dev {} name {} netns ${{dbpid}}".format(p2, p2))
+        os.system("sudo ip netns exec ${{ovspid}} ip link set dev {} up".format(p1))
+        os.system("sudo ip netns exec ${{dbpid}} ip link set dev {} up".format(p2))
+        os.system("sudo ip netns exec ${{dbpid}} ip addr add 192.168.68.{} dev {}".format(sw, p2))
         # 设置数据库的默认路由
         os.system("sudo docker exec -it db{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it db{} route add default dev {}".format(sw, p2))
