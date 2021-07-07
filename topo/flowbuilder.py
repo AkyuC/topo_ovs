@@ -11,8 +11,8 @@ class flowbuilder:
         if(flowbuilder.is_stoped):
             return False
         rs = random.sample(range(0, flowbuilder.count-1), 2)
-        os.system("sudo docker exec -it s{} /bin/bash iperf -u -s".format(rs[0]))
-        os.system("sudo docker exec -it s{} /bin/bash iperf -u -c 192.168.66.{} -b 20M -t 5"\
+        os.system("sudo docker exec -it s{} iperf -u -s".format(rs[0]))
+        os.system("sudo docker exec -it s{} iperf -u -c 192.168.66.{} -b 20M -t 5"\
             .format(rs[1], int(rs[0])))
         Timer(1, flowbuilder.__random_iperf_period).start()
     
