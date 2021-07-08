@@ -234,7 +234,7 @@ class topobuilder:
         p2 = "db{}-s{}".format(sw, sw) 
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
         ovspid = read_pid("s{}".format(sw))
-        dbpid = read_pid("c{}".format(sw))
+        dbpid = read_pid("db{}".format(sw))
         os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, dbpid))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
