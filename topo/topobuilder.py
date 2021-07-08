@@ -185,12 +185,13 @@ class topobuilder:
         p2 = "s{}-s{}".format(sw2, sw1)
         if(((p1, p2) in topobuilder.veth_set) or ((p2, p1) in topobuilder.veth_set)):return
         topobuilder.add_veth(p1, p2, delay*1000)
-        os.system("ovspid1=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw1)) # 添加到docker
-        os.system("ovspid2=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw2))
-        os.system("sudo ip link set dev {} name {} netns ${{ovspid1}}".format(p1, p1))
-        os.system("sudo ip link set dev {} name {} netns ${{ovspid2}}".format(p2, p2))
-        os.system("sudo ip netns exec ${{ovspid1}} ip link set dev {} up".format(p1))
-        os.system("sudo ip netns exec ${{ovspid2}} ip link set dev {} up".format(p2))
+        ovspid1 = read_pid("s{}".format(sw1))
+        ovspid2 = read_pid("s{}".format(sw2))
+        # print("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid1))
+        os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid1))
+        os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ovspid2))
+        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid1, p1))
+        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid2, p2))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
             .format(sw1, sw1, p1, p1, sw2+1000))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
@@ -202,13 +203,13 @@ class topobuilder:
         p1 = "s{}-c{}".format(sw, sw)
         p2 = "c{}-s{}".format(sw, sw) 
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
-        os.system("ovspid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw)) # 添加到docker
-        os.system("ctrlpid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' c{})".format(sw))
-        os.system("sudo ip link set dev {} name {} netns ${{ovspid}}".format(p1, p1))
-        os.system("sudo ip link set dev {} name {} netns ${{ctrlpid}}".format(p2, p2))
-        os.system("sudo ip netns exec ${{ovspid}} ip link set dev {} up".format(p1))
-        os.system("sudo ip netns exec ${{ctrlpid}} ip link set dev {} up".format(p2))
-        os.system("sudo ip netns exec ${{ctrlpid}} ip addr add 192.168.67.{} dev {}".format(sw, p2))
+        ovspid = read_pid("s{}".format(sw))
+        ctrlpid = read_pid("c{}".format(sw))
+        os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
+        os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ctrlpid))
+        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid, p1))
+        os.system("sudo ip netns exec {} ip link set dev {} up".format(ctrlpid, p2))
+        os.system("sudo ip netns exec {} ip addr add 192.168.67.{} dev {}".format(ctrlpid, sw, p2))
         os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null 2>&1 &"\
             .format(sw))
         # 设置控制器的默认路由
@@ -228,13 +229,13 @@ class topobuilder:
         p1 = "s{}-db{}".format(sw, sw)
         p2 = "db{}-s{}".format(sw, sw) 
         topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
-        os.system("ovspid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})".format(sw)) # 添加到docker
-        os.system("dbpid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' db{})".format(sw))
-        os.system("sudo ip link set dev {} name {} netns ${{ovspid}}".format(p1, p1))
-        os.system("sudo ip link set dev {} name {} netns ${{dbpid}}".format(p2, p2))
-        os.system("sudo ip netns exec ${{ovspid}} ip link set dev {} up".format(p1))
-        os.system("sudo ip netns exec ${{dbpid}} ip link set dev {} up".format(p2))
-        os.system("sudo ip netns exec ${{dbpid}} ip addr add 192.168.68.{} dev {}".format(sw, p2))
+        ovspid = read_pid("s{}".format(sw))
+        dbpid = read_pid("c{}".format(sw))
+        os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
+        os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, dbpid))
+        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid, p1))
+        os.system("sudo ip netns exec {} ip link set dev {} up".format(dbpid, p2))
+        os.system("sudo ip netns exec {} ip addr add 192.168.68.{} dev {}".format(dbpid, sw, p2))
         # 设置数据库的默认路由
         os.system("sudo docker exec -it db{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it db{} route add default dev {}".format(sw, p2))
@@ -278,6 +279,16 @@ class topobuilder:
         topobuilder.sw_set.remove(switch_id)
         # os.system("echo \"delete a switch s{} done\"".format(switch_id))
 
+
+def read_pid(docker_name:str):
+    # 从系统中读取容器的网络命名空间id，并返回
+    os.system("echo $(sudo docker inspect -f '{{{{.State.Pid}}}}' {}) > {}"\
+        .format(docker_name,docker_name))
+    with open(docker_name) as file:
+        line = file.readline().strip()
+        pid = int(line)
+        os.system("rm {}".format(docker_name))
+        return pid
 
 class sw_dr:
     # 卫星交换机的容灾
