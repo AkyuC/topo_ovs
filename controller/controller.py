@@ -12,6 +12,7 @@ from ..config.rt_sw2sw import rt_sw2sw
 from ..config.swsolt import swsolt
 from ..config.ctrlslot import ctrlslot
 from ..config.dbload import dbload
+import os
 
 
 def load_command():
@@ -62,6 +63,12 @@ class controller:
                 rt_ctrl2sw.load_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_slot[0], self.rt_ctrl2sw.rt_sw2ctrl_slot[0])
                 rt_db2db.load_rt_db2db(self.rt_db2db.rt_db2db_slot[0])
                 rt_sw2sw.load_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_slot0)
+                # 设置卫星交换机连接控制器
+                datactrl = self.cslot.ctrl_slot[0]
+                for ctrl in datactrl:
+                    for sw in datactrl[ctrl]:
+                        os.system("sudo docker exec -it s{} ovs-vsctl set-controller \
+                            s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
                 self.ctimer.start()
 
             elif(command[0] == const_command.cli_run_iperf):

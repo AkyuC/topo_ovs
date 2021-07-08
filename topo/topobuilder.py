@@ -73,9 +73,6 @@ class topobuilder:
             topobuilder.ctrl_set.add(ctrl)
             os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
             topobuilder.load_ctrl_link(ctrl)
-            # 设置卫星交换机连接控制器
-            for sw in datactrl[ctrl]:
-                os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
 
     @staticmethod
     def load_db(dbdata:list):
