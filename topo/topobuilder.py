@@ -45,7 +45,7 @@ class topobuilder:
         for ctrl in cslot_n:
             if ctrl not in topobuilder.ctrl_set:
                 topobuilder.ctrl_set.add(ctrl)
-                os.system("sudo docker start c{} > /dev/null 2>&1 &".format(ctrl))  # 启动docker
+                os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
                 topobuilder.load_ctrl_link(ctrl)
             for sw in cslot_n[ctrl]:
                 if sw not in cslot_b[ctrl] and sw not in sw_dr.sw_disable_set:
@@ -71,7 +71,7 @@ class topobuilder:
         for ctrl in datactrl:
             print("加载控制器{}以及设置其控制的卫星交换机".format(ctrl))
             topobuilder.ctrl_set.add(ctrl)
-            os.system("sudo docker start c{} > /dev/null 2>&1 &".format(ctrl))  # 启动docker
+            os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
             topobuilder.load_ctrl_link(ctrl)
             # 设置卫星交换机连接控制器
             for sw in datactrl[ctrl]:
@@ -83,7 +83,7 @@ class topobuilder:
         for db in dbdata:
             print("加载分布式数据库{}".format(db))
             topobuilder.db_set.add(db)
-            os.system("sudo docker start db{} > /dev/null 2>&1 &".format(db))  # 启动docker
+            os.system("sudo docker start db{} > /dev/null".format(db))  # 启动docker
             topobuilder.load_db_link(db)
     
     @staticmethod
@@ -95,7 +95,7 @@ class topobuilder:
             topobuilder.del_ovs_switch(s)
         for ctrl in topobuilder.ctrl_set:
             os.system("sudo docker exec -it c{} ip link delete c{}-s{}".format(ctrl, ctrl, ctrl))
-            os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh stop > /dev/null 2>&1 &"\
+            os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh stop > /dev/null"\
                 .format(ctrl))
             os.system("sudo docker stop c{}".format(ctrl))
         for db in topobuilder.db_set:
@@ -178,8 +178,8 @@ class topobuilder:
         # delete a pair of veth(only need to delete one, another one will auto delete)删除一个veth对
         topobuilder.del_tc(p1)
         topobuilder.del_tc(p2)
-        os.system("sudo ip link delete {} > /dev/null 2>&1 &".format(p1))
-        os.system("sudo ip link delete {} > /dev/null 2>&1 &".format(p2))
+        os.system("sudo ip link delete {} > /dev/null".format(p1))
+        os.system("sudo ip link delete {} > /dev/null".format(p2))
         # os.system("echo \"delete a links between {} done\"".format(p1))
 
     @staticmethod
@@ -214,13 +214,13 @@ class topobuilder:
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
         os.system("sudo docker exec -it c{} ip link set dev {} up".format(sw, p2))
         os.system("sudo docker exec -it c{} ip addr add 192.168.67.{} dev {}".format(sw, sw, p2))
-        os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null 2>&1 &"\
+        os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null"\
             .format(sw))
         # 设置控制器的默认路由
         os.system("sudo docker exec -it c{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it c{} route add default dev {}".format(sw, p2))
         # docker中的ovs连接端口
-        os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={} > /dev/null 2>&1 &".\
+        os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={} > /dev/null".\
             format(sw, sw, p1, p1, 3000+sw))
         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_dst=192.168.67.{} action=output:{}\""\
             .format(sw, sw, sw+1, sw+3000))
@@ -244,7 +244,7 @@ class topobuilder:
         os.system("sudo docker exec -it db{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it db{} route add default dev {}".format(sw, p2))
         # docker中的ovs连接端口
-        os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={} > /dev/null 2>&1 &".\
+        os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={} > /dev/null".\
             format(sw, sw, p1, p1, 4000+sw))
         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_dst=192.168.68.{} action=output:{}\""\
             .format(sw, sw, sw+1, sw+4000))
@@ -256,7 +256,7 @@ class topobuilder:
         # add a switch into net 添加一个ovs交换机，使用docker
         # docker run -it --name=s1 --net=none noiro/openvswitch:5.2.1.0.a444194 /bin/bash
         os.system("sudo docker start s{}".format(switch_id))
-        os.system("sudo docker exec -it s{} /bin/bash /home/ovs_open.sh  > /dev/null 2>&1 &".format(switch_id))
+        os.system("sudo docker exec -it s{} /bin/bash /home/ovs_open.sh > /dev/null".format(switch_id))
         os.system("sudo docker exec -it s{} ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other-config:datapath-id={}".format(
                 switch_id, switch_id, switch_id, switch_id))
         # 添加本地端口和默认路由
@@ -277,7 +277,7 @@ class topobuilder:
     @staticmethod
     def del_ovs_switch(switch_id):
         # delete a switch from net 删除一个ovs交换机
-        os.system("sudo docker exec -it s{} ovs-vsctl del-br s{} > /dev/null 2>&1 &".format(switch_id, switch_id))
+        os.system("sudo docker exec -it s{} ovs-vsctl del-br s{} > /dev/null".format(switch_id, switch_id))
         os.system("sudo docker exec -it s{} ip link delete h{}-s{}".format(switch_id, switch_id, switch_id))
         os.system("sudo docker stop s{}".format(switch_id))
         topobuilder.sw_set.remove(switch_id)
