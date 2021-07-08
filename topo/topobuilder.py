@@ -190,8 +190,8 @@ class topobuilder:
         # print("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid1))
         os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid1))
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ovspid2))
-        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid1, p1))
-        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid2, p2))
+        os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw1, p1))
+        os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw2, p2))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
             .format(sw1, sw1, p1, p1, sw2+1000))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
@@ -207,9 +207,9 @@ class topobuilder:
         ctrlpid = read_pid("c{}".format(sw))
         os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ctrlpid))
-        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid, p1))
-        os.system("sudo ip netns exec {} ip link set dev {} up".format(ctrlpid, p2))
-        os.system("sudo ip netns exec {} ip addr add 192.168.67.{} dev {}".format(ctrlpid, sw, p2))
+        os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
+        os.system("sudo docker exec -it c{} ip link set dev {} up".format(sw, p2))
+        os.system("sudo docker exec -it c{} ip addr add 192.168.67.{} dev {}".format(sw, sw, p2))
         os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null 2>&1 &"\
             .format(sw))
         # 设置控制器的默认路由
@@ -233,9 +233,9 @@ class topobuilder:
         dbpid = read_pid("c{}".format(sw))
         os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, dbpid))
-        os.system("sudo ip netns exec {} ip link set dev {} up".format(ovspid, p1))
-        os.system("sudo ip netns exec {} ip link set dev {} up".format(dbpid, p2))
-        os.system("sudo ip netns exec {} ip addr add 192.168.68.{} dev {}".format(dbpid, sw, p2))
+        os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
+        os.system("sudo docker exec -it db{} ip link set dev {} up".format(sw, p2))
+        os.system("sudo docker exec -it db{} ip addr add 192.168.68.{} dev {}".format(sw, sw, p2))
         # 设置数据库的默认路由
         os.system("sudo docker exec -it db{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it db{} route add default dev {}".format(sw, p2))
