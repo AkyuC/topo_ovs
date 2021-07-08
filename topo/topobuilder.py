@@ -17,8 +17,8 @@ class topobuilder:
                 p1 = "s{}-s{}".format(sw, command[1])
                 p2 = "s{}-s{}".format(command[1], sw)
                 if(command[0] == 0):    # 改变链路的时延距离
-                    topobuilder.change_tc(p1, command[2]*1000)
-                    topobuilder.change_tc(p2, command[2]*1000)
+                    topobuilder.change_tc("s{}".format(sw), p1, command[2]*1000)
+                    topobuilder.change_tc("s{}".format(command[1]), p2, command[2]*1000)
                 elif(command[0] == -1):     # 删除链路
                     if((p1, p2) in topobuilder.veth_set):
                         topobuilder.del_veth(p1, p2)
@@ -30,7 +30,7 @@ class topobuilder:
                         os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
                 elif(command[0] == 1):  # 添加链路
                     if(((p1, p2) not in topobuilder.veth_set) and ((p2, p1) not in topobuilder.veth_set)):
-                        topobuilder.add_veth(p1, p2, command[2]*1000)
+                        topobuilder.add_veth(p1, p2)
                         topobuilder.load_sw_link(sw, command[1])
 
     @staticmethod
@@ -104,21 +104,22 @@ class topobuilder:
         topobuilder.veth_set.clear()
     
     @staticmethod
-    def del_tc(interface: str):
+    def del_tc(docker_name, interface: str):
         # delete the tc set 删除vnet上的tc设置
-        os.system("sudo tc qdisc del dev {} root".format(interface))
+        os.system("sudo docker exec -it {} tc qdisc del dev {} root".format(docker_name, interface))
 
     @staticmethod
-    def add_tc(interface: str, delay=None, bandwidth=None, loss=None):
+    def add_tc(docker_name, interface: str, delay=None, bandwidth=None, loss=None):
         # set the tc of interface 在接口上设置tc
         if delay is None and bandwidth is None and loss is None:
             return
         # use hfsc queue
         if bandwidth is not None:
             os.system(
-                "sudo tc qdisc add dev {} root handle 5:0 hfsc default 1".format(interface))
+                "sudo docker exec -it {} tc qdisc add dev {} root handle 5:0 hfsc default 1".format(docker_name, interface))
             os.system(
-                "sudo tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit".format(
+                "sudo docker exec -it {} tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit".format(
+                    docker_name,
                     interface,
                     bandwidth,
                     bandwidth)
@@ -127,8 +128,7 @@ class topobuilder:
         if delay is None and loss is None:
             return
         # delay and loss
-        delay_loss = "sudo tc qdisc add dev {} parent 5:1 handle 10: netem".format(
-            interface)
+        delay_loss = "sudo docker exec -it {} tc qdisc add dev {} parent 5:1 handle 10: netem".format(docker_name, interface)
         if delay is not None:
             delay_loss += " delay {}ms".format(delay)
         if loss is not None and int(loss) != 0:
@@ -136,14 +136,15 @@ class topobuilder:
         os.system(delay_loss)
 
     @staticmethod
-    def change_tc(interface: str, delay=None, bandwidth=None, loss=None):
+    def change_tc(docker_name, interface: str, delay=None, bandwidth=None, loss=None):
         # 改变对应端口的tc设置
         if delay is None and bandwidth is None and loss is None:
             return
         # use hfsc
         if bandwidth is not None:
             os.system(
-                "sudo tc class change dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit".format(
+                "sudo docker exec -it {} tc class change dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit".format(
+                    docker_name,
                     interface,
                     bandwidth,
                     bandwidth)
@@ -153,8 +154,7 @@ class topobuilder:
             return
 
         # delay and loss
-        delay_loss = "sudo tc qdisc change dev {} parent 5:1 handle 10: netem".format(
-            interface)
+        delay_loss = "sudo docker exec -it {} tc qdisc change dev {} parent 5:1 handle 10: netem".format(docker_name, interface)
         if delay is not None:
             delay_loss += " delay {}ms".format(delay)
         if loss is not None and int(loss) != 0:
@@ -162,19 +162,15 @@ class topobuilder:
         os.system(delay_loss)
 
     @staticmethod
-    def add_veth(p1, p2, delay):
+    def add_veth(p1, p2):
         # add a pair of veth 添加一个veth对
         os.system("sudo ip link add {} type veth peer name {}".format(p1, p2))
         topobuilder.veth_set.add((p1, p2))
-        topobuilder.add_tc(p1, delay, 1000)
-        topobuilder.add_tc(p2, delay, 1000)
         # os.system("echo \"add a links between {} done\"".format(p1))
 
     @staticmethod
     def del_veth(p1, p2):
         # delete a pair of veth(only need to delete one, another one will auto delete)删除一个veth对
-        topobuilder.del_tc(p1)
-        topobuilder.del_tc(p2)
         os.system("sudo ip link delete {} > /dev/null".format(p1))
         os.system("sudo ip link delete {} > /dev/null".format(p2))
         # os.system("echo \"delete a links between {} done\"".format(p1))
@@ -185,7 +181,7 @@ class topobuilder:
         p1 = "s{}-s{}".format(sw1, sw2)
         p2 = "s{}-s{}".format(sw2, sw1)
         if(((p1, p2) in topobuilder.veth_set) or ((p2, p1) in topobuilder.veth_set)):return
-        topobuilder.add_veth(p1, p2, delay*1000)
+        topobuilder.add_veth(p1, p2)
         ovspid1 = read_pid("s{}".format(sw1))
         ovspid2 = read_pid("s{}".format(sw2))
         # print("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid1))
@@ -193,6 +189,8 @@ class topobuilder:
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ovspid2))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw1, p1))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw2, p2))
+        topobuilder.add_tc("s{}".format(sw1), p1, delay*1000, 100)  # 设置时延，带宽等
+        topobuilder.add_tc("s{}".format(sw2), p2, delay*1000, 100)
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
             .format(sw1, sw1, p1, p1, sw2+1000))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
@@ -203,7 +201,7 @@ class topobuilder:
         # 建立控制器和交换机的本地连接
         p1 = "s{}-c{}".format(sw, sw)
         p2 = "c{}-s{}".format(sw, sw) 
-        topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
+        topobuilder.add_veth(p1, p2) # 添加链路和端口
         ovspid = read_pid("s{}".format(sw))
         ctrlpid = read_pid("c{}".format(sw))
         os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
@@ -229,7 +227,7 @@ class topobuilder:
         # 建立数据库和交换机之间的链路
         p1 = "s{}-db{}".format(sw, sw)
         p2 = "db{}-s{}".format(sw, sw) 
-        topobuilder.add_veth(p1, p2, 0) # 添加链路和端口
+        topobuilder.add_veth(p1, p2) # 添加链路和端口
         ovspid = read_pid("s{}".format(sw))
         dbpid = read_pid("db{}".format(sw))
         os.system("sudo ip link set dev {} name {} netns {}".format(p1, p1, ovspid))
