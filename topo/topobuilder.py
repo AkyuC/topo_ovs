@@ -189,12 +189,12 @@ class topobuilder:
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ovspid2))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw1, p1))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw2, p2))
-        topobuilder.add_tc("s{}".format(sw1), p1, delay*1000, 100)  # 设置时延，带宽等
-        topobuilder.add_tc("s{}".format(sw2), p2, delay*1000, 100)
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
             .format(sw1, sw1, p1, p1, sw2+1000))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}"\
             .format(sw2, sw2, p2, p2, sw1+1000))
+        topobuilder.add_tc("s{}".format(sw1), p1, delay*1000, 100)  # 设置时延，带宽等
+        topobuilder.add_tc("s{}".format(sw2), p2, delay*1000, 100)
     
     @staticmethod
     def load_ctrl_link(sw):
