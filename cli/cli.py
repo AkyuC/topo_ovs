@@ -1,6 +1,6 @@
 import os
 from threading import Thread
-from ..controller import command_queue
+from ..controller.command_queue import command_queue
 from ..utils import const_command
 
 
@@ -28,7 +28,7 @@ class cli:
                     "> 9.stop all and exit\n"
                     )
 
-                command = input(">Input commands:").split()
+                command = list(map(int, input(">Input commands:").strip().split(' ')))
                 if len(command) == 0:
                     os.system("clear")
                     continue

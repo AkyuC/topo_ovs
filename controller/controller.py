@@ -48,6 +48,8 @@ class controller:
         self.rt_sw2sw = rt_sw2sw(filePath + '/config/rt_sw2sw')
         # 加载指令
         load_command()
+        self.status = False
+        self.start()
 
     def __do_start(self):
         # 控制器从消息队列中获取指令，并且执行对应的函数
