@@ -265,6 +265,7 @@ class topobuilder:
         os.system("sudo docker exec -it s{} ip link add {} type veth peer name {}".format(switch_id, p1, p2))
         os.system("sudo docker exec -it s{} ifconfig {} 192.168.66.{} up".format(switch_id, p2, switch_id+1))
         os.system("sudo docker exec -it s{} route add default dev {}".format(switch_id, p2))
+        os.system("sudo docker exec -it s{} ip link set dev {} up".format(switch_id, p1))
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}".\
             format(switch_id, switch_id, p1, p1, switch_id+2000))
         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_dst=192.168.66.{} action=output:{}\""\
