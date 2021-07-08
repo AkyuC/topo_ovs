@@ -69,18 +69,18 @@ class rt_ctrl2sw:
                 # sw = rt[1]
                 # port = rt[2]
                 os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[1], rt[1], ctrl, rt[0], rt[2]))
+                    .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
                 os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[1], rt[1], ctrl, rt[0], rt[2]))
+                    .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
         for sw in sw2ctrl:
             for rt in sw2ctrl[sw]:
                 # ctrl = rt[0]
                 # sw = rt[1]
                 # port = rt[2]
                 os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[1], rt[1], sw, rt[0], rt[2]))
+                    .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
                 os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[1], rt[1], sw, rt[0], rt[2]))
+                    .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
     
     @staticmethod
     def delete_rt_ctrl2sw(ctrl2sw:dict, sw2ctrl:dict):
@@ -89,16 +89,16 @@ class rt_ctrl2sw:
             for rt in ctrl2sw[ctrl]:
                 if rt[0] == -1: # 添加条目
                     os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
+                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
                     os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
+                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
         for sw in sw2ctrl:
             for rt in sw2ctrl[sw]:
                 if rt[0] == -1: # 添加条目
                     os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw, rt[1], rt[3]))
+                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
                     os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw, rt[1], rt[3]))
+                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
     
     @staticmethod
     def add_rt_ctrl2sw(ctrl2sw:dict, sw2ctrl:dict):
@@ -107,16 +107,16 @@ class rt_ctrl2sw:
             for rt in ctrl2sw[ctrl]:
                 if rt[0] == 1: # 添加条目
                     os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
+                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
                     os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl, rt[1], rt[3]))
+                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
         for sw in sw2ctrl:
             for rt in sw2ctrl[sw]:
                 if rt[0] == 1: # 添加条目
                     os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw, rt[1], rt[3]))
+                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
                     os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw, rt[1], rt[3]))
+                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
 
 if __name__ == "__main__":
     filePath = os.path.dirname(__file__)
