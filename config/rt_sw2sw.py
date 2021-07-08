@@ -37,7 +37,7 @@ class rt_sw2sw:
                 for i in range(len(line_list)-2):
                     flow = int(line_list[i+2])
                     sw = int(flow/1000)
-                    port = flow - sw
+                    port = flow - sw*1000
                     data[sw1][sw2].append((sw, port+1000))
 
         return data

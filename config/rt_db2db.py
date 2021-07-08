@@ -33,7 +33,7 @@ class rt_db2db:
                 for i in range(len(line_list)-2):
                     flow = int(line_list[i+2])
                     sw = int(flow/1000)
-                    port = flow - sw
+                    port = flow - sw*1000
                     data[db1].append((db2, sw, port+1000))
         return data
         
