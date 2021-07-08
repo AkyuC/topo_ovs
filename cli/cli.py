@@ -1,6 +1,6 @@
 import os
 from threading import Thread
-from ..controller import command_queue
+from ..controller.command_queue import command_queue
 from ..utils import const_command
 
 
@@ -8,6 +8,7 @@ class cli:
     def __init__(self) -> None:
         # 初始化
         self.status = False # 状态变量
+        self.start()
 
     def __do_start(self):
         # cli界面线程
@@ -27,12 +28,13 @@ class cli:
                     "> 9.stop all and exit\n"
                     )
 
-                command = input(">Input commands:").split()
-                if len(command) == 0 or not float(command[0]):
+                command = list(map(int, input(">Input commands:").strip().split(' ')))
+                if len(command) == 0:
                     os.system("clear")
                     continue
                 # 写入消息队列中
                 command_queue.write_queue(command)
+                os.system("clear")
                 if(command[0] == 8):
                     self.started = False
                     break

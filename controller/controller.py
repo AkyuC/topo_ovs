@@ -41,10 +41,6 @@ class controller:
         self.dbdata = dbload(filePath + '/config/rt_ctrl2db/db_deploy')
         # 加载时间片序列
         self.ctimer = timer(filePath + '/config/timeslot/timefile')
-        # 初始化拓扑
-        topobuilder.load_slot(self.dslot.data_slot[0])
-        topobuilder.load_ctrl(self.cslot.ctrl_slot[0])
-        topobuilder.load_db(self.dbdata.db_data)
         # 初始化默认流表
         self.rt_ctrl2db = rt_ctrl2db(filePath + '/config/rt_ctrl2db')
         self.rt_ctrl2sw = rt_ctrl2sw(filePath + '/config/rt_ctrl2sw')
@@ -52,6 +48,8 @@ class controller:
         self.rt_sw2sw = rt_sw2sw(filePath + '/config/rt_sw2sw')
         # 加载指令
         load_command()
+        self.status = False
+        self.start()
 
     def __do_start(self):
         # 控制器从消息队列中获取指令，并且执行对应的函数
