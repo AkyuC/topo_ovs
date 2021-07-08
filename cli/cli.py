@@ -8,6 +8,7 @@ class cli:
     def __init__(self) -> None:
         # 初始化
         self.status = False # 状态变量
+        self.start()
 
     def __do_start(self):
         # cli界面线程
@@ -28,11 +29,12 @@ class cli:
                     )
 
                 command = input(">Input commands:").split()
-                if len(command) == 0 or not float(command[0]):
+                if len(command) == 0:
                     os.system("clear")
                     continue
                 # 写入消息队列中
                 command_queue.write_queue(command)
+                os.system("clear")
                 if(command[0] == 8):
                     self.started = False
                     break

@@ -41,10 +41,6 @@ class controller:
         self.dbdata = dbload(filePath + '/config/rt_ctrl2db/db_deploy')
         # 加载时间片序列
         self.ctimer = timer(filePath + '/config/timeslot/timefile')
-        # 初始化拓扑
-        topobuilder.load_slot(self.dslot.data_slot[0])
-        topobuilder.load_ctrl(self.cslot.ctrl_slot[0])
-        topobuilder.load_db(self.dbdata.db_data)
         # 初始化默认流表
         self.rt_ctrl2db = rt_ctrl2db(filePath + '/config/rt_ctrl2db')
         self.rt_ctrl2sw = rt_ctrl2sw(filePath + '/config/rt_ctrl2sw')
