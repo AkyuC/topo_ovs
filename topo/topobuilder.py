@@ -55,8 +55,8 @@ class topobuilder:
     def load_slot(dataslot:dict):
         # load a time slot topo 加载一个时间片拓扑
         # 添加交换机
+        print("加载卫星交换机")
         for sw in range(len(dataslot)):
-            print("加载卫星交换机{}".format(sw))
             topobuilder.add_ovs_switch(sw)
 
         # 添加卫星交换机之间的连接
