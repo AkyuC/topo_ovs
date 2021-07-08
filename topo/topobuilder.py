@@ -213,7 +213,7 @@ class topobuilder:
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, ctrlpid))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
         os.system("sudo docker exec -it c{} ip link set dev {} up".format(sw, p2))
-        os.system("sudo docker exec -it c{} ip addr add 192.168.67.{} dev {}".format(sw, sw, p2))
+        os.system("sudo docker exec -it c{} ip addr add 192.168.67.{} dev {}".format(sw, sw+1, p2))
         os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null"\
             .format(sw))
         # 设置控制器的默认路由
@@ -239,7 +239,7 @@ class topobuilder:
         os.system("sudo ip link set dev {} name {} netns {}".format(p2, p2, dbpid))
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
         os.system("sudo docker exec -it db{} ip link set dev {} up".format(sw, p2))
-        os.system("sudo docker exec -it db{} ip addr add 192.168.68.{} dev {}".format(sw, sw, p2))
+        os.system("sudo docker exec -it db{} ip addr add 192.168.68.{} dev {}".format(sw, sw+1, p2))
         # 设置数据库的默认路由
         os.system("sudo docker exec -it db{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it db{} route add default dev {}".format(sw, p2))
