@@ -56,10 +56,12 @@ class topobuilder:
         # load a time slot topo 加载一个时间片拓扑
         # 添加交换机
         for sw in range(len(dataslot)):
+            print("加载卫星交换机{}".format(sw))
             topobuilder.add_ovs_switch(sw)
 
         # 添加卫星交换机之间的连接
         for sw in dataslot:
+            print("加载卫星交换机{}和相邻的卫星交换机之间的连接".format(sw))
             for adj_sw in dataslot[sw]:
                 topobuilder.load_sw_link(sw, adj_sw, dataslot[sw][adj_sw])
 
@@ -67,6 +69,7 @@ class topobuilder:
     def load_ctrl(datactrl:dict):
         # 加载一个时间片的控制器
         for ctrl in datactrl:
+            print("加载控制器{}以及设置其控制的卫星交换机".format(ctrl))
             topobuilder.ctrl_set.add(ctrl)
             os.system("sudo docker start c{} > /dev/null 2>&1 &".format(ctrl))  # 启动docker
             topobuilder.load_ctrl_link(ctrl)
@@ -78,6 +81,7 @@ class topobuilder:
     def load_db(dbdata:list):
         # 加载分布式数据库
         for db in dbdata:
+            print("加载分布式数据库{}".format(db))
             topobuilder.db_set.add(db)
             os.system("sudo docker start db{} > /dev/null 2>&1 &".format(db))  # 启动docker
             topobuilder.load_db_link(db)
@@ -174,8 +178,8 @@ class topobuilder:
         # delete a pair of veth(only need to delete one, another one will auto delete)删除一个veth对
         topobuilder.del_tc(p1)
         topobuilder.del_tc(p2)
-        os.system("sudo ip link delete {}> /dev/null 2>&1 &".format(p1))
-        os.system("sudo ip link delete {}> /dev/null 2>&1 &".format(p2))
+        os.system("sudo ip link delete {} > /dev/null 2>&1 &".format(p1))
+        os.system("sudo ip link delete {} > /dev/null 2>&1 &".format(p2))
         # os.system("echo \"delete a links between {} done\"".format(p1))
 
     @staticmethod
@@ -252,7 +256,7 @@ class topobuilder:
         # add a switch into net 添加一个ovs交换机，使用docker
         # docker run -it --name=s1 --net=none noiro/openvswitch:5.2.1.0.a444194 /bin/bash
         os.system("sudo docker start s{}".format(switch_id))
-        os.system("sudo docker exec -it s{} /bin/bash /home/ovs_open.sh".format(switch_id))
+        os.system("sudo docker exec -it s{} /bin/bash /home/ovs_open.sh  > /dev/null 2>&1 &".format(switch_id))
         os.system("sudo docker exec -it s{} ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other-config:datapath-id={}".format(
                 switch_id, switch_id, switch_id, switch_id))
         # 添加本地端口和默认路由
@@ -273,7 +277,7 @@ class topobuilder:
     @staticmethod
     def del_ovs_switch(switch_id):
         # delete a switch from net 删除一个ovs交换机
-        os.system("sudo docker exec -it s{} ovs-vsctl del-br s{} ".format(switch_id, switch_id))
+        os.system("sudo docker exec -it s{} ovs-vsctl del-br s{} > /dev/null 2>&1 &".format(switch_id, switch_id))
         os.system("sudo docker exec -it s{} ip link delete h{}-s{}".format(switch_id, switch_id, switch_id))
         os.system("sudo docker stop s{}".format(switch_id))
         topobuilder.sw_set.remove(switch_id)
