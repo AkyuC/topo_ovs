@@ -1,5 +1,29 @@
 import os
+import threading
 
+
+def __change_slot_a_sw(sw, rt_sw):
+    # 修改下发一个交换机的流表项
+    for command in rt_sw:
+        if command[1] in sw_dr.sw_disable_set: continue
+        p1 = "s{}-s{}".format(sw, command[1])
+        p2 = "s{}-s{}".format(command[1], sw)
+        if(command[0] == 0):    # 改变链路的时延距离
+            topobuilder.change_tc("s{}".format(sw), p1, command[2]*1000)
+            topobuilder.change_tc("s{}".format(command[1]), p2, command[2]*1000)
+        elif(command[0] == -1):     # 删除链路
+            if((p1, p2) in topobuilder.veth_set):
+                topobuilder.del_veth(p1, p2)
+                os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
+                os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
+            elif((p2, p1) in topobuilder.veth_set):
+                topobuilder.del_veth(p2, p1)
+                os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
+                os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
+        elif(command[0] == 1):  # 添加链路
+            if(((p1, p2) not in topobuilder.veth_set) and ((p2, p1) not in topobuilder.veth_set)):
+                topobuilder.add_veth(p1, p2)
+                topobuilder.load_sw_link(sw, command[1])
 
 class topobuilder:
     sw_set = set()  # 保存sw的dpid
@@ -12,26 +36,7 @@ class topobuilder:
         # 时间片切换，更改卫星交换机的连接
         for sw in swslot:
             if sw in sw_dr.sw_disable_set: continue     # 失效的卫星交换机
-            for command in swslot[sw]:
-                if command[1] in sw_dr.sw_disable_set: continue
-                p1 = "s{}-s{}".format(sw, command[1])
-                p2 = "s{}-s{}".format(command[1], sw)
-                if(command[0] == 0):    # 改变链路的时延距离
-                    topobuilder.change_tc("s{}".format(sw), p1, command[2]*1000)
-                    topobuilder.change_tc("s{}".format(command[1]), p2, command[2]*1000)
-                elif(command[0] == -1):     # 删除链路
-                    if((p1, p2) in topobuilder.veth_set):
-                        topobuilder.del_veth(p1, p2)
-                        os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
-                        os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
-                    elif((p2, p1) in topobuilder.veth_set):
-                        topobuilder.del_veth(p2, p1)
-                        os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
-                        os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
-                elif(command[0] == 1):  # 添加链路
-                    if(((p1, p2) not in topobuilder.veth_set) and ((p2, p1) not in topobuilder.veth_set)):
-                        topobuilder.add_veth(p1, p2)
-                        topobuilder.load_sw_link(sw, command[1])
+            threading.Thread(target=__change_slot_a_sw, args=(sw, swslot[sw])).start()
 
     @staticmethod
     def change_slot_ctrl(cslot_b:dict, cslot_n:dict):

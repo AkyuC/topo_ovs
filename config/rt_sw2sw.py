@@ -1,6 +1,18 @@
 import os
 from .rt_db2db import rt_db2db
+import threading
 
+
+def __load_rt_sw2sw_a_sw(sw, rt_sw):
+    # 加载一个交换机到其他所有交换机的路由
+    for rt in rt_sw:
+        # sw_dst = rt[0]
+        # sw = rt[1]
+        # port = rt[2]
+        os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+            .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+        os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+            .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
 
 class rt_sw2sw:
     def __init__(self, filePath:str) -> None:
@@ -62,14 +74,7 @@ class rt_sw2sw:
     def load_rt_sw2sw(sw2sw:dict):
         # 初始化交换机和交换机之间的路由
         for sw in sw2sw:
-            for rt in sw2sw[sw]:
-                # sw_dst = rt[0]
-                # sw = rt[1]
-                # port = rt[2]
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+            threading.Thread(target=__load_rt_sw2sw_a_sw, args=(sw, sw2sw[sw]))
     
     @staticmethod
     def delete_rt_sw2sw(sw2sw:dict):
