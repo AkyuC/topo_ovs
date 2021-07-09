@@ -52,9 +52,9 @@ class rt_db2db:
                     data[db].append((1, rt[0], rt[1], rt[2]))
         return data
 
-    def __load_rt_a_db2db(*arg):
-        db = arg[0]
-        db2db = arg[1]
+    def __load_rt_a_db2db(*args):
+        db = args[0]
+        db2db = args[1]
         for rt in db2db:
             # db_dst = rt[0]
             # sw = rt[1]
@@ -70,9 +70,9 @@ class rt_db2db:
         for db in db2db:
             threading.Thread(target=rt_db2db.__load_rt_a_db2db, args=(db, db2db[db],)).start()
     
-    def __delete_rt_a_db2db(*arg):
-        db = arg[0]
-        db2db = arg[1]
+    def __delete_rt_a_db2db(*args):
+        db = args[0]
+        db2db = args[1]
         for rt in db2db:
             if rt[0] == -1: # 删除条目
                 os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
@@ -86,9 +86,9 @@ class rt_db2db:
         for db in db2db:
             threading.Thread(target=rt_db2db.__delete_rt_a_db2db, args=(db, db2db[db],)).start()
     
-    def __add_rt_a_db2db(*arg):
-        db = arg[0]
-        db2db = arg[1]
+    def __add_rt_a_db2db(*args):
+        db = args[0]
+        db2db = args[1]
         for rt in db2db:
             if rt[0] == 1: # 添加条目
                 os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\

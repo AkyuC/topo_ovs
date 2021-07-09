@@ -76,7 +76,7 @@ class rt_sw2sw:
     def load_rt_sw2sw(sw2sw:dict):
         # 初始化交换机和交换机之间的路由
         for sw in sw2sw:
-            threading.Thread(target=rt_sw2sw.__load_rt_sw2sw_a_sw, args=(sw, sw2sw[sw],)).start().start()
+            threading.Thread(target=rt_sw2sw.__load_rt_sw2sw_a_sw, args=(sw, sw2sw[sw],)).start()
     
     def __delete_rt_a_sw2sw(*args):
         sw = args[0]
@@ -92,7 +92,7 @@ class rt_sw2sw:
     def delete_rt_sw2sw(sw2sw:dict):
         # 时间片切换，删除交换机和交换机之间下个时间片没有的路由
         for sw in sw2sw:
-            threading.Thread(target=rt_sw2sw.__delete_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start().start()
+            threading.Thread(target=rt_sw2sw.__delete_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start()
     
     def __add_rt_a_sw2sw(*args):
         sw = args[0]
@@ -108,4 +108,4 @@ class rt_sw2sw:
     def add_rt_sw2sw(sw2sw:dict):
         # 时间片切换，添加交换机和交换机之间上个时间片没有的路由
         for sw in sw2sw:
-            threading.Thread(target=rt_sw2sw.__add_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start().start()
+            threading.Thread(target=rt_sw2sw.__add_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start()
