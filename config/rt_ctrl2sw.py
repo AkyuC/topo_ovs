@@ -1,5 +1,7 @@
 import os
 from .rt_ctrl2db import rt_ctrl2db
+import threading
+
 
 class rt_ctrl2sw:
     def __init__(self, filePath:str) -> None:
@@ -60,63 +62,101 @@ class rt_ctrl2sw:
                     data[sw].append((1, rt[0], rt[1], rt[2]))
         return data
 
+    def __load_rt_a_ctrl2sw(*arg):
+        # 加载一个控制器到控制的卫星交换机的路由
+        ctrl = arg[0]
+        ctrl2sw = arg[1]
+        for rt in ctrl2sw:
+            # sw_dst = rt[0]
+            # sw = rt[1]
+            # port = rt[2]
+            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
+                .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
+            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
+                .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
+
+    def __load_rt_a_sw2ctrl(*arg):
+        # 加载一个控制器到控制器的卫星交换机的路由
+        sw = arg[0]
+        sw2ctrl = arg[1]
+        for rt in sw2ctrl:
+            # ctrl = rt[0]
+            # sw = rt[1]
+            # port = rt[2]
+            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
+                .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
+                .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+
+
     @staticmethod
     def load_rt_ctrl2sw(ctrl2sw:dict, sw2ctrl:dict):
         # 初始化控制器和交换机之间的路由
         for ctrl in ctrl2sw:
-            for rt in ctrl2sw[ctrl]:
-                # sw_dst = rt[0]
-                # sw = rt[1]
-                # port = rt[2]
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
+            threading.Thread(target=rt_ctrl2sw.__load_rt_a_ctrl2sw, arg=(ctrl, ctrl2sw[ctrl],)).start()
         for sw in sw2ctrl:
-            for rt in sw2ctrl[sw]:
-                # ctrl = rt[0]
-                # sw = rt[1]
-                # port = rt[2]
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+            threading.Thread(target=rt_ctrl2sw.__load_rt_a_sw2ctrl, arg=(sw, sw2ctrl[sw],)).start()
+
+    def __delete_rt_a_ctrl2sw(*arg):
+        # 删除一个控制器到交换机的路由
+        ctrl = arg[0]
+        ctrl2sw = arg[1]
+        for rt in ctrl2sw:
+            if rt[0] == -1: # 删除条目
+                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
+                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
+                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+
+    def __delete_rt_a_sw2ctrl(*arg):
+        # 删除一个交换机到控制器的路由
+        sw = arg[0]
+        sw2ctrl = arg[1]
+        for rt in sw2ctrl:
+            if rt[0] == -1: # 删除条目
+                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))           
     
     @staticmethod
     def delete_rt_ctrl2sw(ctrl2sw:dict, sw2ctrl:dict):
         # 时间片切换，删除控制器和交换机之间下个时间片没有的路由
         for ctrl in ctrl2sw:
-            for rt in ctrl2sw[ctrl]:
-                if rt[0] == -1: # 添加条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+            threading.Thread(target=rt_ctrl2sw.__delete_rt_a_ctrl2sw, arg=(ctrl, ctrl2sw[ctrl],)).start()
         for sw in sw2ctrl:
-            for rt in sw2ctrl[sw]:
-                if rt[0] == -1: # 添加条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+            threading.Thread(target=rt_ctrl2sw.__delete_rt_a_sw2ctrl, arg=(sw, sw2ctrl[sw],)).start()
+
+    def __add_rt_a_ctrl2sw(*arg):
+        # 添加一个控制器到数据库的路由
+        ctrl = arg[0]
+        ctrl2sw = arg[1]
+        for rt in ctrl2sw:
+            if rt[0] == 1: # 添加条目
+                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
+                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
+                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+    
+    def __add_rt_a_sw2ctrl(*arg):
+        # 添加一个数据库到控制器的路由
+        sw = arg[0]
+        sw2ctrl = arg[1]
+        for rt in sw2ctrl:
+            if rt[0] == 1: # 添加条目
+                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
+                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))            
     
     @staticmethod
     def add_rt_ctrl2sw(ctrl2sw:dict, sw2ctrl:dict):
         # 时间片切换，添加控制器和交换机之间上个时间片没有的路由
         for ctrl in ctrl2sw:
-            for rt in ctrl2sw[ctrl]:
-                if rt[0] == 1: # 添加条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.66.{} action=output:{}\""\
-                        .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+            threading.Thread(target=rt_ctrl2sw.__add_rt_a_ctrl2sw, arg=(ctrl, ctrl2sw[ctrl],)).start()
         for sw in sw2ctrl:
-            for rt in sw2ctrl[sw]:
-                if rt[0] == 1: # 添加条目
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
-                    os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.67.{} action=output:{}\""\
-                        .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+            threading.Thread(target=rt_ctrl2sw.__add_rt_a_sw2ctrl, arg=(sw, sw2ctrl[sw],)).start()
+                
 
 if __name__ == "__main__":
     filePath = os.path.dirname(__file__)
