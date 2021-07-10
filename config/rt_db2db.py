@@ -52,55 +52,55 @@ class rt_db2db:
                     data[db].append((1, rt[0], rt[1], rt[2]))
         return data
 
-    def __load_rt_a_db2db(*args):
-        db = args[0]
-        db2db = args[1]
-        for rt in db2db:
-            # db_dst = rt[0]
-            # sw = rt[1]
-            # port = rt[2]
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
-                .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
-                .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
+    # def __load_rt_a_db2db(*args):
+    #     db = args[0]
+    #     db2db = args[1]
+    #     for rt in db2db:
+    #         # db_dst = rt[0]
+    #         # sw = rt[1]
+    #         # port = rt[2]
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
 
-    @staticmethod
-    def load_rt_db2db(db2db:dict):
-        # 初始化数据库和数据库之间的路由
-        for db in db2db:
-            threading.Thread(target=rt_db2db.__load_rt_a_db2db, args=(db, db2db[db],)).start()
+    # @staticmethod
+    # def load_rt_db2db(db2db:dict):
+    #     # 初始化数据库和数据库之间的路由
+    #     for db in db2db:
+    #         threading.Thread(target=rt_db2db.__load_rt_a_db2db, args=(db, db2db[db],)).start()
     
-    def __delete_rt_a_db2db(*args):
-        db = args[0]
-        db2db = args[1]
-        for rt in db2db:
-            if rt[0] == -1: # 删除条目
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    # def __delete_rt_a_db2db(*args):
+    #     db = args[0]
+    #     db2db = args[1]
+    #     for rt in db2db:
+    #         if rt[0] == -1: # 删除条目
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
 
-    @staticmethod
-    def delete_rt_db2db(db2db:dict):
-        # 时间片切换，删除数据库和数据库之间下个时间片没有的路由
-        for db in db2db:
-            threading.Thread(target=rt_db2db.__delete_rt_a_db2db, args=(db, db2db[db],)).start()
+    # @staticmethod
+    # def delete_rt_db2db(db2db:dict):
+    #     # 时间片切换，删除数据库和数据库之间下个时间片没有的路由
+    #     for db in db2db:
+    #         threading.Thread(target=rt_db2db.__delete_rt_a_db2db, args=(db, db2db[db],)).start()
     
-    def __add_rt_a_db2db(*args):
-        db = args[0]
-        db2db = args[1]
-        for rt in db2db:
-            if rt[0] == 1: # 添加条目
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    # def __add_rt_a_db2db(*args):
+    #     db = args[0]
+    #     db2db = args[1]
+    #     for rt in db2db:
+    #         if rt[0] == 1: # 添加条目
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
     
-    @staticmethod
-    def add_rt_db2db(db2db:dict):
-        # 时间片切换，添加数据库和数据库之间上个时间片没有的路由
-        for db in db2db:
-            threading.Thread(target=rt_db2db.__add_rt_a_db2db, args=(db, db2db[db],)).start()                
+    # @staticmethod
+    # def add_rt_db2db(db2db:dict):
+    #     # 时间片切换，添加数据库和数据库之间上个时间片没有的路由
+    #     for db in db2db:
+    #         threading.Thread(target=rt_db2db.__add_rt_a_db2db, args=(db, db2db[db],)).start()                
     
 
 if __name__ == "__main__":

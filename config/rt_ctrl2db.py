@@ -89,100 +89,100 @@ class rt_ctrl2db:
         # 找出两个时间片的路由的增删
         return rt_ctrl2db.diff_ctrl2db(dslot_b, dslot_n)
 
-    def __load_rt_a_ctrl2db(*args):
-        # 加载一个控制器到所属的数据库的路由
-        ctrl = args[0]
-        ctrl2db = args[1]
-        for rt in ctrl2db:
-            # db = rt[0]
-            # sw = rt[1]
-            # port = rt[2]
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
-                .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
-                .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
+    # def __load_rt_a_ctrl2db(*args):
+    #     # 加载一个控制器到所属的数据库的路由
+    #     ctrl = args[0]
+    #     ctrl2db = args[1]
+    #     for rt in ctrl2db:
+    #         # db = rt[0]
+    #         # sw = rt[1]
+    #         # port = rt[2]
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], ctrl+1, rt[0]+1, rt[2]))
 
-    def __load_rt_a_db2ctrl(*args):
-        # 加载一个数据库到控制的控制器的路由
-        db = args[0]
-        db2ctrl = args[1]
-        for rt in db2ctrl:
-            # ctrl = rt[0]
-            # sw = rt[1]
-            # port = rt[2]
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
-                .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
-                .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
+    # def __load_rt_a_db2ctrl(*args):
+    #     # 加载一个数据库到控制的控制器的路由
+    #     db = args[0]
+    #     db2ctrl = args[1]
+    #     for rt in db2ctrl:
+    #         # ctrl = rt[0]
+    #         # sw = rt[1]
+    #         # port = rt[2]
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], db+1, rt[0]+1, rt[2]))
 
-    @staticmethod
-    def load_rt_ctrl2db(ctrl2db:dict, db2ctrl:dict):
-        # 初始化控制器和数据库之间的路由
-        for ctrl in ctrl2db:
-            threading.Thread(target=rt_ctrl2db.__load_rt_a_ctrl2db, args=(ctrl, ctrl2db[ctrl],)).start()
+    # @staticmethod
+    # def load_rt_ctrl2db(ctrl2db:dict, db2ctrl:dict):
+    #     # 初始化控制器和数据库之间的路由
+    #     for ctrl in ctrl2db:
+    #         threading.Thread(target=rt_ctrl2db.__load_rt_a_ctrl2db, args=(ctrl, ctrl2db[ctrl],)).start()
            
-        for db in db2ctrl:
-            threading.Thread(target=rt_ctrl2db.__load_rt_a_db2ctrl, args=(db, db2ctrl[db],)).start()
+    #     for db in db2ctrl:
+    #         threading.Thread(target=rt_ctrl2db.__load_rt_a_db2ctrl, args=(db, db2ctrl[db],)).start()
 
-    def __delete_rt_a_ctrl2db(*args):
-        # 删除一个控制器到数据库的路由
-        ctrl = args[0]
-        ctrl2db = args[1]
-        for rt in ctrl2db:
-            if rt[0] == -1: # 删除条目
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+    # def __delete_rt_a_ctrl2db(*args):
+    #     # 删除一个控制器到数据库的路由
+    #     ctrl = args[0]
+    #     ctrl2db = args[1]
+    #     for rt in ctrl2db:
+    #         if rt[0] == -1: # 删除条目
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
 
-    def __delete_rt_a_db2ctrl(*args):
-        # 删除一个数据库到控制器的路由
-        db = args[0]
-        db2ctrl = args[1]
-        for rt in db2ctrl:
-            if rt[0] == -1: # 删除条目
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    # def __delete_rt_a_db2ctrl(*args):
+    #     # 删除一个数据库到控制器的路由
+    #     db = args[0]
+    #     db2ctrl = args[1]
+    #     for rt in db2ctrl:
+    #         if rt[0] == -1: # 删除条目
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
 
-    @staticmethod
-    def delete_rt_ctrl2db(ctrl2db:dict, db2ctrl:dict):
-        # 时间片切换，删除控制器和数据库之间在下一个时间片没有的路由
-        for ctrl in ctrl2db:
-            threading.Thread(target=rt_ctrl2db.__delete_rt_a_ctrl2db, args=(ctrl, ctrl2db[ctrl],)).start()
-        for db in db2ctrl:
-            threading.Thread(target=rt_ctrl2db.__delete_rt_a_db2ctrl, args=(db, db2ctrl[db],)).start()
+    # @staticmethod
+    # def delete_rt_ctrl2db(ctrl2db:dict, db2ctrl:dict):
+    #     # 时间片切换，删除控制器和数据库之间在下一个时间片没有的路由
+    #     for ctrl in ctrl2db:
+    #         threading.Thread(target=rt_ctrl2db.__delete_rt_a_ctrl2db, args=(ctrl, ctrl2db[ctrl],)).start()
+    #     for db in db2ctrl:
+    #         threading.Thread(target=rt_ctrl2db.__delete_rt_a_db2ctrl, args=(db, db2ctrl[db],)).start()
 
-    def __add_rt_a_ctrl2db(*args):
-        # 添加一个控制器到数据库的路由
-        ctrl = args[0]
-        ctrl2db = args[1]
-        for rt in ctrl2db:
-            if rt[0] == 1:    
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
-                    .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+    # def __add_rt_a_ctrl2db(*args):
+    #     # 添加一个控制器到数据库的路由
+    #     ctrl = args[0]
+    #     ctrl2db = args[1]
+    #     for rt in ctrl2db:
+    #         if rt[0] == 1:    
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.67.{},nw_dst=192.168.68.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], ctrl+1, rt[1]+1, rt[3]))
     
-    def __add_rt_a_db2ctrl(*args):
-        # 添加一个数据库到控制器的路由
-        db = args[0]
-        db2ctrl = args[1]
-        for rt in db2ctrl:
-            if rt[0] == 1:
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
-                    .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    # def __add_rt_a_db2ctrl(*args):
+    #     # 添加一个数据库到控制器的路由
+    #     db = args[0]
+    #     db2ctrl = args[1]
+    #     for rt in db2ctrl:
+    #         if rt[0] == 1:
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.68.{},nw_dst=192.168.67.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], db+1, rt[1]+1, rt[3]))
 
-    @staticmethod
-    def add_rt_ctrl2db(ctrl2db:dict, db2ctrl:dict):
-        # 时间片切换，添加控制器和数据库之间在上一个时间片没有的路由
-        for ctrl in ctrl2db:
-            threading.Thread(target=rt_ctrl2db.__add_rt_a_ctrl2db, args=(ctrl, ctrl2db[ctrl],)).start()
-        for db in db2ctrl:
-            threading.Thread(target=rt_ctrl2db.__add_rt_a_db2ctrl, args=(db, db2ctrl[db],)).start()                    
+    # @staticmethod
+    # def add_rt_ctrl2db(ctrl2db:dict, db2ctrl:dict):
+    #     # 时间片切换，添加控制器和数据库之间在上一个时间片没有的路由
+    #     for ctrl in ctrl2db:
+    #         threading.Thread(target=rt_ctrl2db.__add_rt_a_ctrl2db, args=(ctrl, ctrl2db[ctrl],)).start()
+    #     for db in db2ctrl:
+    #         threading.Thread(target=rt_ctrl2db.__add_rt_a_db2ctrl, args=(db, db2ctrl[db],)).start()                    
 
 
 if __name__ == "__main__":

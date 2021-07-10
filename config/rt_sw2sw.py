@@ -7,7 +7,7 @@ class rt_sw2sw:
     def __init__(self, filePath:str) -> None:
         self.slot_num = 0   # 时间片的个数
         self.rt_sw2sw_slot = dict() # 所有时间片的数据
-        self.rt_sw2sw_slot0 = rt_db2db.load_db2db(filePath + "/s2s_0")
+        # self.rt_sw2sw_slot0 = rt_db2db.load_db2db(filePath + "/s2s_0")
         self.rt_sw2sw_diff = dict() # 所有时间片的数据
         self.start(filePath)
 
@@ -59,53 +59,53 @@ class rt_sw2sw:
                         data[sw].append((1, adj_sw, rt[0], rt[1]))
         return data
     
-    def __load_rt_sw2sw_a_sw(*args):
-        sw = args[0]
-        rt_sw = args[1]
-        # 加载一个交换机到其他所有交换机的路由
-        for rt in rt_sw:
-            # sw_dst = rt[0]
-            # sw = rt[1]
-            # port = rt[2]
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
-            os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+    # def __load_rt_sw2sw_a_sw(*args):
+    #     sw = args[0]
+    #     rt_sw = args[1]
+    #     # 加载一个交换机到其他所有交换机的路由
+    #     for rt in rt_sw:
+    #         # sw_dst = rt[0]
+    #         # sw = rt[1]
+    #         # port = rt[2]
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
+    #         os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+    #             .format(rt[1], rt[1], sw+1, rt[0]+1, rt[2]))
 
-    @staticmethod
-    def load_rt_sw2sw(sw2sw:dict):
-        # 初始化交换机和交换机之间的路由
-        for sw in sw2sw:
-            threading.Thread(target=rt_sw2sw.__load_rt_sw2sw_a_sw, args=(sw, sw2sw[sw],)).start()
+    # @staticmethod
+    # def load_rt_sw2sw(sw2sw:dict):
+    #     # 初始化交换机和交换机之间的路由
+    #     for sw in sw2sw:
+    #         threading.Thread(target=rt_sw2sw.__load_rt_sw2sw_a_sw, args=(sw, sw2sw[sw],)).start()
     
-    def __delete_rt_a_sw2sw(*args):
-        sw = args[0]
-        rt_sw = args[1]
-        for rt in rt_sw:
-            if rt[0] == -1: # 删除条目
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+    # def __delete_rt_a_sw2sw(*args):
+    #     sw = args[0]
+    #     rt_sw = args[1]
+    #     for rt in rt_sw:
+    #         if rt[0] == -1: # 删除条目
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
 
-    @staticmethod
-    def delete_rt_sw2sw(sw2sw:dict):
-        # 时间片切换，删除交换机和交换机之间下个时间片没有的路由
-        for sw in sw2sw:
-            threading.Thread(target=rt_sw2sw.__delete_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start()
+    # @staticmethod
+    # def delete_rt_sw2sw(sw2sw:dict):
+    #     # 时间片切换，删除交换机和交换机之间下个时间片没有的路由
+    #     for sw in sw2sw:
+    #         threading.Thread(target=rt_sw2sw.__delete_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start()
     
-    def __add_rt_a_sw2sw(*args):
-        sw = args[0]
-        rt_sw = args[1]
-        for rt in rt_sw:
-            if rt[0] == 1: # 添加条目
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
-                os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
-                    .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+    # def __add_rt_a_sw2sw(*args):
+    #     sw = args[0]
+    #     rt_sw = args[1]
+    #     for rt in rt_sw:
+    #         if rt[0] == 1: # 添加条目
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
+    #             os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.66.{},nw_dst=192.168.66.{} action=output:{}\""\
+    #                 .format(rt[2], rt[2], sw+1, rt[1]+1, rt[3]))
 
-    @staticmethod
-    def add_rt_sw2sw(sw2sw:dict):
-        # 时间片切换，添加交换机和交换机之间上个时间片没有的路由
-        for sw in sw2sw:
-            threading.Thread(target=rt_sw2sw.__add_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start()
+    # @staticmethod
+    # def add_rt_sw2sw(sw2sw:dict):
+    #     # 时间片切换，添加交换机和交换机之间上个时间片没有的路由
+    #     for sw in sw2sw:
+    #         threading.Thread(target=rt_sw2sw.__add_rt_a_sw2sw, args=(sw, sw2sw[sw],)).start()
