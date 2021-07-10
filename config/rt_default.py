@@ -17,8 +17,8 @@ class rt_default:
         self.sw_flow_diff_add= dict()
         self.sw_num = len(self.rt_sw2sw.rt_sw2sw_slot[0])
         self.slot_num = self.rt_sw2sw.slot_num
-        self.start()
         self.filePath = filePath
+        self.start()
 
     def start(self):
         # 将配置文件读出之后，转换为在每一个卫星交换机上下发的流表项
@@ -77,9 +77,9 @@ class rt_default:
             for sw in self.rt_ctrl2sw.rt_ctrl2sw_diff[slot_no]:
                 for rt in self.rt_ctrl2sw.rt_ctrl2sw_diff[slot_no][sw]:
                     if rt[0] == -1:
-                        self.sw_flow_diff_del[slot_no][rt[2]].append((rt[0],4,sw,rt[1],rt[3]))
+                        self.sw_flow_diff_del[slot_no][rt[2]].append((4,sw,rt[1],rt[3]))
                     if rt[0] == 1:
-                        self.sw_flow_diff_add[slot_no][rt[2]].append((rt[0],4,sw,rt[1],rt[3]))
+                        self.sw_flow_diff_add[slot_no][rt[2]].append((4,sw,rt[1],rt[3]))
             
             # 转换数据库到数据库的路由，为类型5
             for db in self.rt_db2db.rt_db2db_slot[slot_no]:
@@ -88,9 +88,9 @@ class rt_default:
             for db in self.rt_db2db.rt_db2db_diff[slot_no]:
                 for rt in self.rt_db2db.rt_db2db_diff[slot_no][db]:
                     if rt[0] == -1:
-                        self.sw_flow_diff_del[slot_no][rt[2]].append((rt[0],5,db,rt[1],rt[3]))
+                        self.sw_flow_diff_del[slot_no][rt[2]].append((5,db,rt[1],rt[3]))
                     if rt[0] == 1:
-                        self.sw_flow_diff_add[slot_no][rt[2]].append((rt[0],5,db,rt[1],rt[3]))
+                        self.sw_flow_diff_add[slot_no][rt[2]].append((5,db,rt[1],rt[3]))
             
             # 转换交换机到交换机的路由，为类型6
             for sw in self.rt_sw2sw.rt_sw2sw_slot[slot_no]:
@@ -100,32 +100,58 @@ class rt_default:
             for sw in self.rt_sw2sw.rt_sw2sw_diff[slot_no]:
                 for rt in self.rt_sw2sw.rt_sw2sw_diff[slot_no][sw]:
                     if rt[0] == -1:
-                        self.sw_flow_diff_del[slot_no][rt[2]].append((rt[0],6,sw,rt[1],rt[3]))
+                        self.sw_flow_diff_del[slot_no][rt[2]].append((6,sw,rt[1],rt[3]))
                     if rt[0] == 1:
-                        self.sw_flow_diff_add[slot_no][rt[2]].append((rt[0],6,sw,rt[1],rt[3]))
-        
-        for sw in range(self.sw_num):
-            # 初始化的流表，转换为shell脚本
-            rt_default.__rt2sh_df(sw, self.sw_flow_data[0][sw], self.filePath + "/rt_shell/s{}_slot0.sh".format(sw))
-            id = read_id("s{}".format(sw))
-            os.system("sudo docker cp {}/rt_shell/s{}_slot0.sh {}:/home; \
-                sudo docker exec -it s{} chmod +x /home/s{}_slot0.sh".format(self.filePath,sw,id,sw,sw))
+                        self.sw_flow_diff_add[slot_no][rt[2]].append((6,sw,rt[1],rt[3]))
 
-        for slot_no in range(self.slot_num):
+    def config2sh(self):
+        with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
+            # 初始化的流表，转换为shell脚本
+            all_task = []
             for sw in range(self.sw_num):
+                all_task.append(pool.submit(rt_default.__config_a_init_sw, \
+                    sw, self.sw_flow_data[0][sw], self.filePath + "/rt_shell/s{}_slot0.sh".format(sw)))
+            wait(all_task, return_when=ALL_COMPLETED)
+
+            for slot_no in range(self.slot_num):
                 # 需要删除的流表项，转换为shell较脚本
-                rt_default.__rt2sh_del(sw, self.sw_flow_diff_del[slot_no][sw], self.filePath + "/rt_shell/s{}_del_slot{}.sh"\
-                    .format(sw,slot_no))
-                id = read_id("s{}".format(sw))
-                os.system("sudo docker cp {}/rt_shell/s{}_del_slot{}.sh {}:/home; \
-                    sudo docker exec -it s{} chmod +x /home/s{}_del_slot{}.sh".format(self.filePath,sw,slot_no,id,sw,sw,slot_no))
+                all_task.clear()
+                for sw in range(self.sw_num):
+                    all_task.append(pool.submit(rt_default.__config_a_del_sw, \
+                        sw, slot_no, self.sw_flow_diff_del[slot_no][sw], self.filePath + "/rt_shell/s{}_del_slot{}.sh".format(sw,slot_no)))
+                wait(all_task, return_when=ALL_COMPLETED)
+
                 # 需要添加的流表项，转换为shell脚本
-                rt_default.__rt2sh_add(sw, self.sw_flow_diff_add[slot_no][sw], self.filePath + "/rt_shell/s{}_add_slot{}.sh"\
-                    .format(sw,slot_no))
-                id = read_id("s{}".format(sw))
-                os.system("sudo docker cp {}/rt_shell/s{}_add_slot{}.sh {}:/home; \
-                    sudo docker exec -it s{} chmod +x /home/s{}_add_slot{}.sh".format(self.filePath,sw,slot_no,id,sw,sw,slot_no))
+                all_task.clear()
+                for sw in range(self.sw_num):
+                    all_task.append(pool.submit(rt_default.__config_a_add_sw, \
+                        sw, slot_no, self.sw_flow_diff_add[slot_no][sw], self.filePath + "/rt_shell/s{}_add_slot{}.sh".format(sw,slot_no)))
+                wait(all_task, return_when=ALL_COMPLETED)
+                    
+    @staticmethod
+    def __config_a_init_sw(sw, dlist:list, filename:str):
+        # 一个卫星交换机
+        rt_default.__rt2sh_df(sw, dlist, filename)
+        id = read_id("s{}".format(sw))
+        os.system("sudo docker cp {} {}:/home; \
+            sudo docker exec -it s{} chmod +x /home/s{}_slot0.sh".format(filename,sw,id,sw,sw))
     
+    @staticmethod
+    def __config_a_del_sw(sw, slot_no, dlist:list, filename:str):
+        # 一个卫星交换机
+        rt_default.__rt2sh_del(sw, dlist, filename)
+        id = read_id("s{}".format(sw))
+        os.system("sudo docker cp {} {}:/home; \
+            sudo docker exec -it s{} chmod +x /home/s{}_del_slot{}.sh".format(filename,id,sw,sw,slot_no))
+
+    @staticmethod
+    def __config_a_add_sw(sw, slot_no, dlist:list, filename:str):
+        # 一个卫星交换机
+        rt_default.__rt2sh_add(sw, dlist, filename)
+        id = read_id("s{}".format(sw))
+        os.system("sudo docker cp {} {}:/home; \
+            sudo docker exec -it s{} chmod +x /home/s{}_add_slot{}.sh".format(filename,id,sw,sw,slot_no))
+
     @staticmethod
     def __rt2sh_df(sw, dlist:list, filename:str):
         # 一个卫星交换机初始化的流表shell脚本转换
