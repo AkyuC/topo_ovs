@@ -59,13 +59,13 @@ class controller:
                 # rt_ctrl2sw.load_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_slot[0], self.rt_ctrl2sw.rt_sw2ctrl_slot[0])
                 # rt_db2db.load_rt_db2db(self.rt_db2db.rt_db2db_slot[0])
                 # rt_sw2sw.load_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_slot0)
-                self.rt_default.load_rt_default(self.rt_default.sw_flow_data[0])
+                self.rt_default.load_rt_default()
                 # 设置卫星交换机连接控制器
-                datactrl = self.cslot.ctrl_slot[0]
-                for ctrl in datactrl:
-                    for sw in datactrl[ctrl]:
-                        os.system("sudo docker exec -it s{} ovs-vsctl set-controller \
-                            s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
+                # datactrl = self.cslot.ctrl_slot[0]
+                # for ctrl in datactrl:
+                #     for sw in datactrl[ctrl]:
+                #         os.system("sudo docker exec -it s{} ovs-vsctl set-controller \
+                #             s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
                 self.ctimer.start()
 
             elif(command[0] == const_command.cli_run_iperf):
@@ -93,33 +93,34 @@ class controller:
                 self.stop()
 
             elif(command[0] ==  const_command.timer_diff):
-                index = self.ctimer.index   # 获取当前的时间片
-                cslot_b = self.cslot.ctrl_slot[index]
-                cslot_n = self.cslot.ctrl_slot[index + 1]
-                topobuilder.change_slot_ctrl(cslot_b, cslot_n)  # 切换控制器
+                index = command[1]   # 获取切换的时间片
+                # cslot_b = self.cslot.ctrl_slot[index]
+                # cslot_n = self.cslot.ctrl_slot[index + 1]
+                # topobuilder.change_slot_ctrl(cslot_b, cslot_n)  # 切换控制器
                 # 先是删除下个时间片没有的默认路由
-                self.rt_default.del_rt_default(self.rt_default.sw_flow_diff_del[index])
+                self.rt_default.del_rt_default(index)
                 # rt_ctrl2db.delete_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_diff[index], self.rt_ctrl2db.rt_db2ctrl_diff[index])
                 # rt_ctrl2sw.delete_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_diff[index], self.rt_ctrl2sw.rt_sw2ctrl_diff[index])
                 # rt_db2db.delete_rt_db2db(self.rt_db2db.rt_db2db_diff[index])
                 # rt_sw2sw.delete_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_diff[index])
                 # 卫星交换机的连接切换
-                topobuilder.change_slot_sw(self.dslot.data_slot[index])
+                # topobuilder.change_slot_sw(self.dslot.data_slot[index])
                 # 添加新的上个时间片没有的路由
                 self.rt_default.add_rt_default(self.rt_default.sw_flow_diff_add)
                 # rt_ctrl2db.add_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_diff[index], self.rt_ctrl2db.rt_db2ctrl_diff[index])
                 # rt_ctrl2sw.add_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_diff[index], self.rt_ctrl2sw.rt_sw2ctrl_diff[index])
                 # rt_db2db.add_rt_db2db(self.rt_db2db.rt_db2db_diff[index])
                 # rt_sw2sw.add_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_diff[index])  
+                print("!")
                 # 设置卫星交换机连接控制器
-                for ctrl in cslot_n:
-                    if ctrl not in topobuilder.ctrl_set:
-                        topobuilder.ctrl_set.add(ctrl)
-                        os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
-                        topobuilder.load_ctrl_link(ctrl)
-                    for sw in cslot_n[ctrl]:
-                        if sw not in cslot_b[ctrl] and sw not in sw_dr.sw_disable_set:
-                            os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
+                # for ctrl in cslot_n:
+                #     if ctrl not in topobuilder.ctrl_set:
+                #         topobuilder.ctrl_set.add(ctrl)
+                #         os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
+                #         topobuilder.load_ctrl_link(ctrl)
+                #     for sw in cslot_n[ctrl]:
+                #         if sw not in cslot_b[ctrl] and sw not in sw_dr.sw_disable_set:
+                #             os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
     
     def start(self):
         # 开启线程
