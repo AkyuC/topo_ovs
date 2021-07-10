@@ -103,10 +103,32 @@ class rt_default:
                         self.sw_flow_diff_del[slot_no][rt[2]].append((rt[0],6,sw,rt[1],rt[3]))
                     if rt[0] == 1:
                         self.sw_flow_diff_add[slot_no][rt[2]].append((rt[0],6,sw,rt[1],rt[3]))
+        
+        for sw in range(self.sw_num):
+            # 初始化的流表，转换为shell脚本
+            rt_default.__rt2sh_df(sw, self.sw_flow_data[0][sw], self.filePath + "/rt_shell/s{}_slot0.sh".format(sw))
+            id = read_id("s{}".format(sw))
+            os.system("sudo docker cp {}/rt_shell/s{}_slot0.sh {}:/home; \
+                sudo docker exec -it s{} chmod +x /home/s{}_slot0.sh".format(self.filePath,sw,id,sw,sw))
+
+        for slot_no in range(self.slot_num):
+            for sw in range(self.sw_num):
+                # 需要删除的流表项，转换为shell较脚本
+                rt_default.__rt2sh_del(sw, self.sw_flow_diff_del[slot_no][sw], self.filePath + "/rt_shell/s{}_del_slot{}.sh"\
+                    .format(sw,slot_no))
+                id = read_id("s{}".format(sw))
+                os.system("sudo docker cp {}/rt_shell/s{}_del_slot{}.sh {}:/home; \
+                    sudo docker exec -it s{} chmod +x /home/s{}_del_slot{}.sh".format(self.filePath,sw,slot_no,id,sw,sw,slot_no))
+                # 需要添加的流表项，转换为shell脚本
+                rt_default.__rt2sh_add(sw, self.sw_flow_diff_add[slot_no][sw], self.filePath + "/rt_shell/s{}_add_slot{}.sh"\
+                    .format(sw,slot_no))
+                id = read_id("s{}".format(sw))
+                os.system("sudo docker cp {}/rt_shell/s{}_add_slot{}.sh {}:/home; \
+                    sudo docker exec -it s{} chmod +x /home/s{}_add_slot{}.sh".format(self.filePath,sw,slot_no,id,sw,sw,slot_no))
     
     @staticmethod
-    def __load_rt_sw_default(sw, dlist:list, filename:str):
-        # 下发一个交换机的默认流表
+    def __rt2sh_df(sw, dlist:list, filename:str):
+        # 一个卫星交换机初始化的流表shell脚本转换
         with open(filename, 'w+') as file:
             for rt in dlist:
                 if rt[0] == 1:
@@ -132,102 +154,102 @@ class rt_default:
                 command += "ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
                 file.write(command)
-
-    def load_rt_default(self, data:dict):
-        # 并发的下发所有默认流表
-        # with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
-        #     all_task = []
-        for sw in range(1):
-            rt_default.__load_rt_sw_default(sw, data[sw], self.filePath + "/rt_shell/s{}_slot0.sh".format(sw))
-        #     all_task.append(pool.submit(rt_default.__load_rt_sw_default, sw, data[sw], self.filePath + "/rt_shell/s{}_slot0.sh".format(sw)))
-        # wait(all_task, return_when=ALL_COMPLETED)
-        for sw in range(1):
-            id = read_id("s{}".format(sw))
-            command = "sudo docker cp {}/rt_shell/s{}_slot0.sh {}:/home".format(self.filePath,sw,id)
-            os.system(command)
-            command = "sudo docker exec -it s{} /bin/bash /home/s{}_slot0.sh".format(sw,sw)
-            os.system(command)
     
     @staticmethod
-    def __del_rt_sw_default(sw, dlist:list):
-        # 时间片切换，删除一个交换机不需要的流表
-        count = 0
-        command = ""
-        for rt in dlist:
-            if rt[0] == 1:
-                src = 67
-                dst = 68
-            elif rt[0] == 2:
-                src = 68
-                dst = 67
-            elif rt[0] == 3:
-                src = 67
-                dst = 66
-            elif rt[0] == 4:
-                src = 66
-                dst = 67
-            elif rt[0] == 5:
-                src = 68
-                dst = 68
-            elif rt[0] == 6:
-                src = 66
-                dst = 66
-            command += "sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
-                .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
-            command += "sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
-                .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
-            count += 1
-            if count == 50:
-                count = 0
-                os.system(command)
-                command = ""
+    def __rt2sh_del(sw, dlist:list, filename:str):
+        # 时间片切换，删除一个交换机不需要的流表的shell脚本转换
+        with open(filename, 'w+') as file:
+            for rt in dlist:
+                if rt[0] == 1:
+                    src = 67
+                    dst = 68
+                elif rt[0] == 2:
+                    src = 68
+                    dst = 67
+                elif rt[0] == 3:
+                    src = 67
+                    dst = 66
+                elif rt[0] == 4:
+                    src = 66
+                    dst = 67
+                elif rt[0] == 5:
+                    src = 68
+                    dst = 68
+                elif rt[0] == 6:
+                    src = 66
+                    dst = 66
+                command = "sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
+                    .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
+                command += "sudo docker exec -it s{} ovs-ofctl del-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
+                    .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
+                file.write(command)
+  
+    @staticmethod
+    def __rt2sh_add(sw, dlist:list, filename:str):
+        # 时间片切换，修改一个交换机的默认流表的shell脚本转换
+        with open(filename, 'w+') as file:
+            for rt in dlist:
+                if rt[0] == 1:
+                    src = 67
+                    dst = 68
+                elif rt[0] == 2:
+                    src = 68
+                    dst = 67
+                elif rt[0] == 3:
+                    src = 67
+                    dst = 66
+                elif rt[0] == 4:
+                    src = 66
+                    dst = 67
+                elif rt[0] == 5:
+                    src = 68
+                    dst = 68
+                elif rt[0] == 6:
+                    src = 66
+                    dst = 66
+                command = "sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
+                    .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
+                command += "sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
+                    .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
+                file.write(command)
 
-    def del_rt_default(self, data:dict):
-        # 时间片切换，删除不需要的流表
+    @staticmethod
+    def __load_rt_a_default(sw):
+        # 加载一个卫星交换机的路由
+        os.system("sudo docker exec -it s{} /bin/bash /home/s{}_slot0.sh".format(sw,sw))
+
+    def load_rt_default(self):
+        # 并发的下发所有默认流表
         with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
-            all_task = [pool.submit(fn=rt_default.__del_rt_sw_default,\
-                args=(sw, data[sw],)) for sw in range(self.sw_num)]
+            all_task = []
+            for sw in range(self.sw_num):
+                all_task.append(pool.submit(rt_default.__load_rt_a_default, sw))
             wait(all_task, return_when=ALL_COMPLETED)
     
     @staticmethod
-    def __add_rt_sw_default(sw, dlist:list):
-        # 时间片切换，修改一个交换机的默认流表
-        count = 0
-        command = ""
-        for rt in dlist:
-            if rt[0] == 1:
-                src = 67
-                dst = 68
-            elif rt[0] == 2:
-                src = 68
-                dst = 67
-            elif rt[0] == 3:
-                src = 67
-                dst = 66
-            elif rt[0] == 4:
-                src = 66
-                dst = 67
-            elif rt[0] == 5:
-                src = 68
-                dst = 68
-            elif rt[0] == 6:
-                src = 66
-                dst = 66
-            command += "sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
-                .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
-            command += "sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\";"\
-                .format(sw,sw,src,rt[1],dst,rt[2],rt[3])
-            count += 1
-            if count == 20:
-                count = 0
-                os.system(command)
-                command = ""
+    def __del_rt_a_default(sw, slot_no):
+        # 时间片切换，删除一个卫星交换机的路由
+        os.system("sudo docker exec -it s{} /bin/bash /home/s{}_del_slot{}.sh".format(sw,sw,slot_no))
 
-    def add_rt_default(self, data:dict):
+    def del_rt_default(self, slot_no):
+        # 时间片切换，删除不需要的流表
+        with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
+            all_task = []
+            for sw in range(self.sw_num):
+                all_task.append(pool.submit(rt_default.__del_rt_a_default, sw, slot_no))
+            wait(all_task, return_when=ALL_COMPLETED)
+
+    @staticmethod
+    def __add_rt_a_default(sw, slot_no):
+        # 时间片切换，添加一个卫星交换机的路由
+        os.system("sudo docker exec -it s{} /bin/bash /home/s{}_add_slot{}.sh".format(sw,sw,slot_no))
+
+    def add_rt_default(self, slot_no):
         # 时间片切换，并发的下发修改所有默认流表
         with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
-            all_task = [pool.submit(fn=rt_default.__add_rt_sw_default,\
-                args=(sw, data[sw],)) for sw in range(self.sw_num)]
+            all_task = []
+            for sw in range(self.sw_num):
+                all_task.append(pool.submit(rt_default.__add_rt_a_default, sw, slot_no))
             wait(all_task, return_when=ALL_COMPLETED)
 
 def read_id(docker_name:str):
