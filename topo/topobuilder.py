@@ -8,36 +8,36 @@ class topobuilder:
     db_set = set()
     veth_set = set()    # 使用veth-pair来构建链路，同时使用tc流量控制来设置时延和带宽等
 
-    def __change_slot_a_sw(*arg):
-        # 修改下发一个交换机的流表项
-        sw, rt_sw = arg[0], arg[1]
-        for command in rt_sw:
-            if command[1] in sw_dr.sw_disable_set: continue
-            p1 = "s{}-s{}".format(sw, command[1])
-            p2 = "s{}-s{}".format(command[1], sw)
-            if(command[0] == 0):    # 改变链路的时延距离
-                topobuilder.change_tc("s{}".format(sw), p1, command[2]*1000)
-                topobuilder.change_tc("s{}".format(command[1]), p2, command[2]*1000)
-            elif(command[0] == -1):     # 删除链路
-                if((p1, p2) in topobuilder.veth_set):
-                    topobuilder.del_veth(p1, p2)
-                    os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
-                    os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
-                elif((p2, p1) in topobuilder.veth_set):
-                    topobuilder.del_veth(p2, p1)
-                    os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
-                    os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
-            elif(command[0] == 1):  # 添加链路
-                if(((p1, p2) not in topobuilder.veth_set) and ((p2, p1) not in topobuilder.veth_set)):
-                    topobuilder.add_veth(p1, p2)
-                    topobuilder.load_sw_link(sw, command[1])
+    # def __change_slot_a_sw(*arg):
+    #     # 修改下发一个交换机的流表项
+    #     sw, rt_sw = arg[0], arg[1]
+    #     for command in rt_sw:
+    #         if command[1] in sw_dr.sw_disable_set: continue
+    #         p1 = "s{}-s{}".format(sw, command[1])
+    #         p2 = "s{}-s{}".format(command[1], sw)
+    #         if(command[0] == 0):    # 改变链路的时延距离
+    #             topobuilder.change_tc("s{}".format(sw), p1, command[2]*1000)
+    #             topobuilder.change_tc("s{}".format(command[1]), p2, command[2]*1000)
+    #         elif(command[0] == -1):     # 删除链路
+    #             if((p1, p2) in topobuilder.veth_set):
+    #                 topobuilder.del_veth(p1, p2)
+    #                 os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
+    #                 os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
+    #             elif((p2, p1) in topobuilder.veth_set):
+    #                 topobuilder.del_veth(p2, p1)
+    #                 os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(sw, sw, p1))
+    #                 os.system("sudo docker exec -it s{} ovs-vsctl del-port s{} {}".format(command[1], command[1], p2))
+    #         elif(command[0] == 1):  # 添加链路
+    #             if(((p1, p2) not in topobuilder.veth_set) and ((p2, p1) not in topobuilder.veth_set)):
+    #                 topobuilder.add_veth(p1, p2)
+    #                 topobuilder.load_sw_link(sw, command[1])
 
-    @staticmethod
-    def change_slot_sw(swslot:dict):
-        # 时间片切换，更改卫星交换机的连接
-        for sw in swslot:
-            if sw in sw_dr.sw_disable_set: continue     # 失效的卫星交换机
-            threading.Thread(target=topobuilder.__change_slot_a_sw, args=(sw, swslot[sw],)).start()
+    # @staticmethod
+    # def change_slot_sw(swslot:dict):
+    #     # 时间片切换，更改卫星交换机的连接
+    #     for sw in swslot:
+    #         if sw in sw_dr.sw_disable_set: continue     # 失效的卫星交换机
+    #         threading.Thread(target=topobuilder.__change_slot_a_sw, args=(sw, swslot[sw],)).start()
 
     @staticmethod
     def change_slot_ctrl(cslot_b:dict, cslot_n:dict):
@@ -220,8 +220,8 @@ class topobuilder:
         os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
         os.system("sudo docker exec -it c{} ip link set dev {} up".format(sw, p2))
         os.system("sudo docker exec -it c{} ip addr add 192.168.67.{} dev {}".format(sw, sw+1, p2))
-        os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null"\
-            .format(sw))
+        # os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null"\
+        #     .format(sw))
         # 设置控制器的默认路由
         os.system("sudo docker exec -it c{} ip route flush table main".format(sw))
         os.system("sudo docker exec -it c{} route add default dev {}".format(sw, p2))
@@ -340,5 +340,5 @@ class sw_dr:
             topobuilder.load_ctrl_link(sw)
         for ctrl in cslot:
             if sw in cslot[ctrl]:
-                os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw, ctrl))
+                os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}".format(sw, sw+1, ctrl))
                 return
