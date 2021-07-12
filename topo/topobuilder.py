@@ -79,8 +79,8 @@ class topobuilder:
     @staticmethod
     def load_ctrl(datactrl:dict):
         # 加载一个时间片的控制器
+        print("加载第一个时间片的控制器")
         for ctrl in datactrl:
-            print("加载控制器{}以及设置其控制的卫星交换机".format(ctrl))
             topobuilder.ctrl_set.add(ctrl)
             os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
             topobuilder.load_ctrl_link(ctrl)
@@ -88,8 +88,8 @@ class topobuilder:
     @staticmethod
     def load_db(dbdata:list):
         # 加载分布式数据库
+        print("加载分布式数据库")
         for db in dbdata:
-            print("加载分布式数据库{}".format(db))
             topobuilder.db_set.add(db)
             os.system("sudo docker start db{} > /dev/null".format(db))  # 启动docker
             topobuilder.load_db_link(db)

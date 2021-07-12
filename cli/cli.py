@@ -12,8 +12,8 @@ class cli:
 
     def __do_start(self):
         # cli界面线程
+        os.system("clear")
         while True:
-            os.system("clear")
             try:
                 print("> Available commands(number 0~8):\n"
                     "> 0.run topo\n"
@@ -25,16 +25,16 @@ class cli:
                     "> 6.controller recover test + controller number(0 ~ 15)\n"
                     "> 7.database shutdown test + database number(0 ~ 3)\n"
                     "> 8.database recover test + database number(0 ~ 3)\n"
-                    "> 9.stop all and exit\n"
+                    "> 9.stop all and exit"
                     )
 
-                command = list(map(int, input(">Input commands:").strip().split(' ')))
+                command = list(map(int, input(">Input commands:\n").strip().split(' ')))
+                print('')
                 if len(command) == 0:
-                    os.system("clear")
+                    print("请正确输入！")
                     continue
                 # 写入消息队列中
                 command_queue.write_queue(command)
-                os.system("clear")
                 if(command[0] == 8):
                     self.started = False
                     break

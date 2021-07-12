@@ -46,13 +46,14 @@ class swsolt:
     
     def start(self, filePath:str):
         # 查找不同时间片之间的拓扑变换
-        self.slot_num = len(os.listdir(filePath)) - 1    # 获取时间片个数
+        self.slot_num = len(os.listdir(filePath + "/timeslot")) - 1    # 获取时间片个数
         for slot_no in range(self.slot_num):
             self.data_slot[slot_no] = swsolt.load_slot(filePath + "/timeslot/test_" + str(slot_no))
         for slot_no in range(self.slot_num):
             self.diff_data[slot_no] = swsolt.diff_slot(self.data_slot[slot_no], self.data_slot[(slot_no+1)%self.slot_num])
 
     def config2sh(self):
+        print("将配置文件转换为shell脚本")
         links_set = set()
         data = self.data_slot[0]
         for sw in data:
@@ -80,22 +81,22 @@ class swsolt:
                     if (sw, adj_sw, data[sw][adj_sw]) not in links_set and \
                         (adj_sw, sw, data[sw][adj_sw]) not in links_set:
                         links_set.add((sw, adj_sw, data[sw][adj_sw]))
+                    file.write("ip link set dev {} up\n".format(p))
                     file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n"\
                         .format(sw, p, p, adj_sw+1000))
                     file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
                     file.write("tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit\n"\
                         .format(p,500,500))
                     file.write("tc qdisc add dev {} parent 5:1 handle 10: netem delay {}ms\n".format(p,int(data[sw][adj_sw]*1000)))
-            id = read_id("s{}".format(sw))
-            os.system("sudo docker cp {}/sw_shell/sw{}_link_init.sh {}:/home"\
-                    .format(self.filePath,sw,id))
+            os.system("sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
+                    .format(self.filePath,sw,sw))
         with open(self.filePath + "/sw_shell/link_init.sh", 'w+') as file:
             for sw in data:
-                file.write("sudo docker start s{}\n".format(sw))
+                file.write("sudo docker start s{} > /dev/null\n".format(sw))
             for link in links_set:
                 p1 = "s{}-s{}".format(link[0],link[1])
                 p2 = "s{}-s{}".format(link[1],link[0])
-                file.write("echo \"s{}连接s{}\"\n".format(link[0],link[1]))
+                # file.write("echo \"s{}连接s{}\"\n".format(link[0],link[1]))
                 file.write("sudo ip link add {} type veth peer name {}\n".format(p1, p2))
                 # file.write("ovspid1=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n".format(link[0]))
                 # file.write("ovspid2=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n".format(link[1]))
@@ -103,34 +104,35 @@ class swsolt:
                     .format(p1, p1, link[0]))
                 file.write("sudo ip link set dev {} name {} netns $(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n"\
                     .format(p2, p2, link[1]))
-                file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[0], p1))
-                file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[1], p2))
+                # file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[0], p1))
+                # file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[1], p2))
 
-        with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
+        with ThreadPoolExecutor(max_workers=len(self.diff_data[0])) as pool:
             all_task = []
             for slot_no in range(self.slot_num):
                 all_task.clear()
-                for sw in self.diff_data[slot_no]:  # ovs需要删除或者修改的端口
+                for sw in self.diff_data[slot_no]:  # ovs需要删除或者修改的
                     all_task.append(pool.submit(swsolt.__config_a_sw_del_change_links, \
-                        slot_no, self.diff_data[slot_no][sw], self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)))
+                        sw, self.diff_data[slot_no][sw], self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)))
                 wait(all_task, return_when=ALL_COMPLETED)
 
                 all_task.clear()
                 for sw in self.diff_data[slot_no]:  # ovs需要添加的端口
                     all_task.append(pool.submit(swsolt.__config_a_sw_add_links, \
-                        slot_no, self.diff_data[slot_no][sw], self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)))
+                        sw, self.diff_data[slot_no][sw], self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)))
                 wait(all_task, return_when=ALL_COMPLETED)
 
             all_task.clear()
-            for slot_no in range(self.slot_num):    # topo需要删除或添加的链路
+            for slot_no in range(self.slot_num):    # topo需要添加的链路
                 all_task.append(pool.submit(swsolt.__config_a_slot_links, \
-                    self.diff_data[slot_no], self.filePath + "/sw_shell/s{}_change_links_slot{}.sh".format(sw,slot_no)))
+                    self.diff_data[slot_no], self.filePath + "/sw_shell/change_links_slot{}.sh".format(slot_no)))
             wait(all_task, return_when=ALL_COMPLETED)
 
                 
     @staticmethod
-    def __config_a_sw_del_change_links(slot_no, dlist:list, filename:str):
+    def __config_a_sw_del_change_links(sw, dlist:list, filename:str):
         with open(filename, 'w+') as file:
+            file.write("\n")
             for link in dlist:
                 p = "s{}-s{}".format(link[1],link[2])
                 if link[0] ==  0:
@@ -139,26 +141,25 @@ class swsolt:
                 elif link[0] == -1:
                     file.write("tc qdisc del dev {} root\n".format(link[1], p))
                     file.write("ovs-vsctl del-port s{} {}\n".format(link[1], p))
-        id = read_id("s{}".format(link[1]))
-        os.system("sudo docker cp {} {}:/home".format(filename,id))
+                    if link[1]>link[2]:
+                        file.write("ip link delete {} > /dev/null\n".format(link[1], p))
+        os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
     
     @staticmethod
     def __config_a_slot_links(data:dict, filename:str):
         with open(filename, 'w+') as file:
+            file.write("\n")
             links_set = set()
             for sw in data:
                 for rt in data[sw]:
                     if rt[0] == 0: continue
-                    if (rt[0], sw, rt[2]) not in links_set or \
+                    if (rt[0], sw, rt[2]) not in links_set and \
                         (rt[0], rt[2], sw) not in links_set:
                         links_set.add((rt[0], sw, rt[2]))
             for link in links_set:
                 p1 = "s{}-s{}".format(link[1],link[2])
                 p2 = "s{}-s{}".format(link[2],link[1])
-                if link[0] == -1:
-                    file.write("sudo docker exec -it s{} ip link delete {} > /dev/null\n".format(link[1], p1))
-                    file.write("sudo docker exec -it s{} ip link delete {} > /dev/null\n".format(link[2], p2))
-                elif link[0] == 1:
+                if link[0] == 1:
                     file.write("sudo ip link add {} type veth peer name {}\n".format(p1, p2))
                     # file.write("ovspid1=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n".format(link[1]))
                     # file.write("ovspid2=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n".format(link[2]))
@@ -168,23 +169,24 @@ class swsolt:
                         .format(p1, p1, link[1]))
                     file.write("sudo ip link set dev {} name {} netns $(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n"\
                         .format(p2, p2, link[2]))
-                    file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[1], p1))
-                    file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[2], p2))
+                    # file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[1], p1))
+                    # file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[2], p2))
 
     @staticmethod
-    def __config_a_sw_add_links(slot_no, dlist:list, filename:str):
+    def __config_a_sw_add_links(sw, dlist:list, filename:str):
         with open(filename, 'w+') as file:
+            file.write("\n")
             for link in dlist:
                 p = "s{}-s{}".format(link[1],link[2])
                 if link[0] ==  1:
+                    file.write("ip link set dev {} up\n".format(p))
                     file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n"\
                         .format(link[1], p, p, link[2]+1000))
                     file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
                     file.write("tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit\n"\
                         .format(p,500,500))
-                    file.write("tc qdisc add dev {} parent 5:1 handle 10: netem delay {}ms".format(p,int(link[3]*1000)))
-        id = read_id("s{}".format(link[1]))
-        os.system("sudo docker cp {} {}:/home".format(filename,id))
+                    file.write("tc qdisc add dev {} parent 5:1 handle 10: netem delay {}ms\n".format(p,int(link[3]*1000)))
+        os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
 
     @staticmethod
     def __a_sw_links_init(sw):
@@ -194,8 +196,9 @@ class swsolt:
 
     def sw_links_init(self):
         # 加载初始化拓扑
+        print("启动ovs，加载第一个时间片的拓扑")
         os.system("sudo chmod +x {path}/sw_shell/link_init.sh;\
-            sudo /bin/bash {path}/sw_shell/link_init.sh;".format(path=self.filePath))
+            sudo /bin/bash {path}/sw_shell/link_init.sh > /dev/null".format(path=self.filePath))
         with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
             all_task = []
             for sw in self.data_slot[0]:
@@ -209,6 +212,8 @@ class swsolt:
 
     @staticmethod
     def __a_sw_links_change_add(sw, slot_no):
+        # print("sudo docker exec -it s{} chmod +x /home/s{}_change_add_slot{}.sh;\
+        #     sudo docker exec -it s{} /bin/bash /home/s{}_change_add_slot{}.sh".format(sw,sw,slot_no,sw,sw,slot_no))
         os.system("sudo docker exec -it s{} chmod +x /home/s{}_change_add_slot{}.sh;\
             sudo docker exec -it s{} /bin/bash /home/s{}_change_add_slot{}.sh".format(sw,sw,slot_no,sw,sw,slot_no))
 
@@ -216,25 +221,18 @@ class swsolt:
         # 时间片切换，拓扑切换
         with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
             all_task = []
+            print("links_change_dc")
             for sw in self.data_slot[0]:
                 all_task.append(pool.submit(swsolt.__a_sw_links_change_dc, sw, slot_no))
             wait(all_task, return_when=ALL_COMPLETED)
-            os.system("sudo chmod +x {}/sw_shell/s{}_change_links_slot{};\
-                sudo /bin/bash {}/sw_shell/s{}_change_links_slot{}".format(self.filePath, sw, slot_no,self.filePath, sw, slot_no))
+            print("change_links_slot")
+            os.system("sudo chmod +x {}/sw_shell/change_links_slot{}.sh;\
+                sudo /bin/bash {}/sw_shell/change_links_slot{}.sh".format(self.filePath, slot_no,self.filePath, slot_no))
             all_task.clear()
+            print("links_change_add")
             for sw in self.data_slot[0]:
                 all_task.append(pool.submit(swsolt.__a_sw_links_change_add, sw, slot_no))
             wait(all_task, return_when=ALL_COMPLETED)
-
-
-def read_id(docker_name:str):
-    # 从系统中读取容器的网络命名空间id，并返回
-    os.system("echo $(sudo docker ps -aqf\"name=^{}$\") > {}"\
-        .format(docker_name,docker_name))
-    with open(docker_name) as file:
-        line = file.readline().strip()
-        os.system("rm {}".format(docker_name))
-        return line
 
 
 if __name__ == "__main__":
