@@ -2,7 +2,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 
-class swsolt:
+class swslot:
     def __init__(self, filePath:str) -> None:
         self.slot_num = 0   # 时间片的个数
         self.data_slot = dict() # 所有时间片的数据
@@ -48,9 +48,12 @@ class swsolt:
         # 查找不同时间片之间的拓扑变换
         self.slot_num = len(os.listdir(filePath + "/timeslot")) - 1    # 获取时间片个数
         for slot_no in range(self.slot_num):
-            self.data_slot[slot_no] = swsolt.load_slot(filePath + "/timeslot/test_" + str(slot_no))
+            self.data_slot[slot_no] = swslot.load_slot(filePath + "/timeslot/test_" + str(slot_no))
         for slot_no in range(self.slot_num):
-            self.diff_data[slot_no] = swsolt.diff_slot(self.data_slot[slot_no], self.data_slot[(slot_no+1)%self.slot_num])
+            self.diff_data[slot_no] = swslot.diff_slot(self.data_slot[slot_no], self.data_slot[(slot_no+1)%self.slot_num])
+
+    def cpsh2docker(self):
+        pass
 
     def config2sh(self):
         print("将配置文件转换为shell脚本")
@@ -112,19 +115,19 @@ class swsolt:
             for slot_no in range(self.slot_num):
                 all_task.clear()
                 for sw in self.diff_data[slot_no]:  # ovs需要删除或者修改的
-                    all_task.append(pool.submit(swsolt.__config_a_sw_del_change_links, \
+                    all_task.append(pool.submit(swslot.__config_a_sw_del_change_links, \
                         sw, self.diff_data[slot_no][sw], self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)))
                 wait(all_task, return_when=ALL_COMPLETED)
 
                 all_task.clear()
                 for sw in self.diff_data[slot_no]:  # ovs需要添加的端口
-                    all_task.append(pool.submit(swsolt.__config_a_sw_add_links, \
+                    all_task.append(pool.submit(swslot.__config_a_sw_add_links, \
                         sw, self.diff_data[slot_no][sw], self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)))
                 wait(all_task, return_when=ALL_COMPLETED)
 
             all_task.clear()
             for slot_no in range(self.slot_num):    # topo需要添加的链路
-                all_task.append(pool.submit(swsolt.__config_a_slot_links, \
+                all_task.append(pool.submit(swslot.__config_a_slot_links, \
                     self.diff_data[slot_no], self.filePath + "/sw_shell/change_links_slot{}.sh".format(slot_no)))
             wait(all_task, return_when=ALL_COMPLETED)
 
@@ -139,10 +142,11 @@ class swsolt:
                     file.write("tc qdisc change dev {} parent 5:1 handle 10: netem delay {}ms\n".\
                         format(p,int(link[3]*1000)))
                 elif link[0] == -1:
-                    file.write("tc qdisc del dev {} root\n".format(link[1], p))
                     file.write("ovs-vsctl del-port s{} {}\n".format(link[1], p))
                     if link[1]>link[2]:
-                        file.write("ip link delete {} > /dev/null\n".format(link[1], p))
+                        # file.write("echo deletelink\n")
+                        file.write("tc qdisc del dev {} root\n".format(p))
+                        file.write("ip link delete {} > /dev/null\n".format(p))
         os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
     
     @staticmethod
@@ -202,7 +206,7 @@ class swsolt:
         with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
             all_task = []
             for sw in self.data_slot[0]:
-                all_task.append(pool.submit(swsolt.__a_sw_links_init, sw))
+                all_task.append(pool.submit(swslot.__a_sw_links_init, sw))
             wait(all_task, return_when=ALL_COMPLETED)
 
     @staticmethod
@@ -217,27 +221,32 @@ class swsolt:
         os.system("sudo docker exec -it s{} chmod +x /home/s{}_change_add_slot{}.sh;\
             sudo docker exec -it s{} /bin/bash /home/s{}_change_add_slot{}.sh".format(sw,sw,slot_no,sw,sw,slot_no))
 
-    def sw_links_change(self, slot_no):
+    @staticmethod
+    def __sw_links_change(filename):
+        # print("change_links_slot")
+        os.system("sudo chmod +x {filename};\
+            sudo /bin/bash {filename}".format(filename=filename))
+
+    @staticmethod
+    def sw_links_change(dslot, slot_no):
         # 时间片切换，拓扑切换
-        with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
+        with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
             all_task = []
-            print("links_change_dc")
-            for sw in self.data_slot[0]:
-                all_task.append(pool.submit(swsolt.__a_sw_links_change_dc, sw, slot_no))
+            # print("links_change_dc")
+            for sw in dslot.data_slot[0]:
+                all_task.append(pool.submit(swslot.__a_sw_links_change_dc, sw, slot_no))
+            all_task.append(pool.submit(swslot.__sw_links_change, "{}/sw_shell/change_links_slot{}.sh".format(dslot.filePath, slot_no)))
             wait(all_task, return_when=ALL_COMPLETED)
-            print("change_links_slot")
-            os.system("sudo chmod +x {}/sw_shell/change_links_slot{}.sh;\
-                sudo /bin/bash {}/sw_shell/change_links_slot{}.sh".format(self.filePath, slot_no,self.filePath, slot_no))
             all_task.clear()
-            print("links_change_add")
-            for sw in self.data_slot[0]:
-                all_task.append(pool.submit(swsolt.__a_sw_links_change_add, sw, slot_no))
+            # print("links_change_add")
+            for sw in dslot.data_slot[0]:
+                all_task.append(pool.submit(swslot.__a_sw_links_change_add, sw, slot_no))
             wait(all_task, return_when=ALL_COMPLETED)
 
 
 if __name__ == "__main__":
     filePath = os.path.dirname(__file__)
-    dslot = swsolt(filePath + '/timeslot')
+    dslot = swslot(filePath + '/timeslot')
     
     for index in dslot.data_slot:
         tmp = 0

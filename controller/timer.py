@@ -4,17 +4,19 @@ from ..utils import const_command
 
 # 定时切换
 class timer:
-    def __init__(self, timefile:str) -> None:
+    def __init__(self, timefile:str, offset=0, command=10) -> None:
         # 加载时间片序列
         self.time_list = list()
         self.index = 0  # 第0个时间片
         self.slot_num = 0  # 时间片个数
         self.is_stoped = True  # 是否已经停止
+        self.offset = offset
+        self.command = command
         self.load_time_seq(timefile)
 
     def send_timer_command(self):
         # 向控制器发送命令，说明需要切换时间片
-        command_queue.write_queue((const_command.timer_diff, self.index))
+        command_queue.write_queue((self.command, self.index))
         if(self.is_stoped):
             return False
         tmp  = self.index
@@ -26,7 +28,7 @@ class timer:
             return False
         self.is_stoped = False
         # 需要写入数据库目前所在的时间片
-        Timer(self.time_list[self.index], self.send_timer_command).start()
+        Timer(self.time_list[self.index] - self.offset, self.send_timer_command).start()
 
     def stop(self):
         self.is_stoped = True
