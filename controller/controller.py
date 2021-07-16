@@ -2,13 +2,10 @@ from threading import Thread
 from .command_queue import command_queue
 from .timer import timer
 from ..utils import const_command
-from ..topo.flowbuilder import flowbuilder
-from ..topo.topobuilder import topobuilder
-from ..topo.topobuilder import sw_dr
-from ..config.rt_default import rt_default
-from ..config.swslot import swslot
-from ..config.ctrlslot import ctrlslot
-from ..config.dbload import dbload
+from ..route_default.rt_default import rt_default
+from ..topo.swslot import swslot
+from ..topo.ctrlslot import ctrlslot
+from ..topo.dbload import dbload
 import os
 
 
@@ -55,6 +52,7 @@ class controller:
         # 控制器从消息队列中获取指令，并且执行对应的函数
         while True:
             command = command_queue.read_queue_wait()
+            if self.status == False: return
 
             if(command[0] == const_command.cli_run_topo):
                 # rt_ctrl2db.load_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_slot[0], self.rt_ctrl2db.rt_db2ctrl_slot[0])
@@ -72,17 +70,9 @@ class controller:
                 self.rttimer.start()
 
             elif(command[0] == const_command.cli_run_iperf):
-                flowbuilder.random_iperf_period(len(topobuilder.sw_set))
-
+                pass
             elif(command[0] == const_command.cli_stop_iperf):
-                flowbuilder.stop()
-
-            elif(command[0] == const_command.cli_sw_shutdown):
-                sw_dr.disable_sw(command[1])
-
-            elif(command[0] == const_command.cli_sw_recover):
-                sw_dr.enable_sw[command[1]]
-                
+                pass
             elif(command[0] == const_command.cli_ctrl_shutdown):
                 pass
             elif(command[0] == const_command.cli_ctrl_recover):
@@ -91,47 +81,24 @@ class controller:
                 pass
             elif(command[0] == const_command.cli_db_recover):
                 pass
-
             elif(command[0] == const_command.cli_stop_all):
                 self.stop()
+                return
 
             elif(command[0] ==  const_command.timer_diff):
                 slot_no = command[1]   # 获取切换的时间片
-                # topobuilder.change_slot_ctrl(cslot_b, cslot_n)  # 切换控制器
-                # 先是删除下个时间片没有的默认路由
-                # print("删除不需要的默认流表")
-                # self.rt_default.del_rt_default(slot_no)
-                # rt_ctrl2db.delete_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_diff[slot_no], self.rt_ctrl2db.rt_db2ctrl_diff[slot_no])
-                # rt_ctrl2sw.delete_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_diff[slot_no], self.rt_ctrl2sw.rt_sw2ctrl_diff[slot_no])
-                # rt_db2db.delete_rt_db2db(self.rt_db2db.rt_db2db_diff[slot_no])
-                # rt_sw2sw.delete_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_diff[slot_no])
-                # 卫星交换机的连接切换
-                # topobuilder.change_slot_sw(self.dslot.data_slot[slot_no])
-                print("topo的链路修改")
+                print("第{}个时间片切换，topo的链路修改".format(slot_no))
                 swslot.sw_links_change(self.dslot, slot_no)
-                # 添加新的上个时间片没有的路由
-                # print("添加默认流表")
-                # self.rt_default.add_rt_default(slot_no)
-                # rt_ctrl2db.add_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_diff[slot_no], self.rt_ctrl2db.rt_db2ctrl_diff[slot_no])
-                # rt_ctrl2sw.add_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_diff[slot_no], self.rt_ctrl2sw.rt_sw2ctrl_diff[slot_no])
-                # rt_db2db.add_rt_db2db(self.rt_db2db.rt_db2db_diff[slot_no])
-                # rt_sw2sw.add_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_diff[slot_no])  
-                # print("!")
                 # 设置卫星交换机连接控制器
                 cslot_b = self.cslot.ctrl_slot[slot_no]
                 cslot_n = self.cslot.ctrl_slot[slot_no + 1]
                 for ctrl in cslot_n:
-                    # if ctrl not in topobuilder.ctrl_set:
-                    #     topobuilder.ctrl_set.add(ctrl)
-                    #     os.system("sudo docker start c{} > /dev/null".format(ctrl))  # 启动docker
-                    #     topobuilder.load_ctrl_link(ctrl)
                     for sw in cslot_n[ctrl]:
-                        if sw not in cslot_b[ctrl] and sw not in sw_dr.sw_disable_set:
+                        if sw not in cslot_b[ctrl]:
                             os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}:6653".format(sw, sw, ctrl))
-                # print("第{}个时间片切换结束".format(slot_no))
-                # self.ctimer.stop()
                 print("第{}个时间片切换，删除不需要的控制器\n".format(slot_no))
                 Thread(target=ctrlslot.ctrl_change_del, args=(self.cslot, slot_no)).start()
+
             elif(command[0] ==  const_command.timer_rt_diff):
                 slot_no = command[1]   # 获取切换的时间片
                 print("第{}个时间片切换默认路由\n".format(slot_no))
@@ -144,12 +111,14 @@ class controller:
         if self.status:
             return False
         else:
-            Thread(target=self.__do_start).start()
             self.status = True
+            Thread(target=self.__do_start).start()
         return True
 
     def stop(self):
         # 关闭线程
         self.started = False
         self.topotimer.stop()
-        topobuilder.del_slot()
+        self.rttimer.stop()
+        os.system("sudo docker stop $(sudo docker ps -a -q)")
+        os.system("sudo docker rm $(sudo docker ps -a -q)")

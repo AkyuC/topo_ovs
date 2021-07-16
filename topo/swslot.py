@@ -53,10 +53,19 @@ class swslot:
             self.diff_data[slot_no] = swslot.diff_slot(self.data_slot[slot_no], self.data_slot[(slot_no+1)%self.slot_num])
 
     def cpsh2docker(self):
-        pass
+        data = self.data_slot[0]
+        for sw in data:
+            os.system("sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
+                .format(self.filePath,sw,sw))
+        for slot_no in range(self.slot_num):
+            for sw in self.diff_data[slot_no]:
+                filename = self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)
+                os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
+            for sw in self.diff_data[slot_no]:
+                filename = self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)
+                os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
 
     def config2sh(self):
-        print("将配置文件转换为shell脚本")
         links_set = set()
         data = self.data_slot[0]
         for sw in data:
@@ -200,7 +209,6 @@ class swslot:
 
     def sw_links_init(self):
         # 加载初始化拓扑
-        print("启动ovs，加载第一个时间片的拓扑")
         os.system("sudo chmod +x {path}/sw_shell/link_init.sh;\
             sudo /bin/bash {path}/sw_shell/link_init.sh > /dev/null".format(path=self.filePath))
         with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:

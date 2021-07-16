@@ -1,6 +1,4 @@
 import os
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-from topo_ovs.config.swslot import swslot
 
 
 class ctrlslot:
@@ -41,34 +39,6 @@ class ctrlslot:
             for ctrl in self.ctrl_slot[next]:
                 if ctrl not in self.ctrl_slot[index]:
                     self.ctrl_slot_add[index].append(ctrl)
-
-    # @staticmethod
-    # def __load_a_ctrl(sw):
-    #     # 建立控制器和交换机的本地连接
-    #     p1 = "s{}-c{}".format(sw, sw)
-    #     p2 = "c{}-s{}".format(sw, sw) 
-    #     os.system("sudo docker start c{sw};\
-    #         sudo ip link add {p1} type veth peer name {p2}".format(sw, p1, p2))
-    #     os.system("ovspid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{sw}); \
-    #             ctrlpid=$(sudo docker inspect -f '{{{{.State.Pid}}}}' c{sw}); \
-    #             sudo ip link set dev {p1} name {p1} netns ${{ovspid}} \
-    #             sudo ip link set dev {p2} name {p2} netns ${{ctrlpid}}"\
-    #             .format(sw=sw,p1=p1,p2=p2))
-    #     os.system("sudo docker exec -it s{} ip link set dev {} up".format(sw, p1))
-    #     os.system("sudo docker exec -it c{} ip link set dev {} up".format(sw, p2))
-    #     os.system("sudo docker exec -it c{} ip addr add 192.168.67.{} dev {}".format(sw, sw+1, p2))
-    #     os.system("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null"\
-    #         .format(sw))
-    #     # 设置控制器的默认路由
-    #     os.system("sudo docker exec -it c{} ip route flush table main".format(sw))
-    #     os.system("sudo docker exec -it c{} route add default dev {}".format(sw, p2))
-    #     # docker中的ovs连接端口
-    #     os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={} > /dev/null".\
-    #         format(sw, sw, p1, p1, 3000+sw))
-    #     os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_dst=192.168.67.{} action=output:{}\""\
-    #         .format(sw, sw, sw+1, sw+3000))
-    #     os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_dst=192.168.67.{} action=output:{}\""\
-    #         .format(sw, sw, sw+1, sw+3000))
 
     @staticmethod
     def __config2sh_ctrl_add(ctrl, file):
@@ -134,11 +104,11 @@ class ctrlslot:
         ctrlslot.__run_ctrl_shell(self.filePath + "/ctrl_shell/ctrl_init.sh")
     
     @staticmethod
-    def ctrl_change_add(cslot:swslot, slot_no):
+    def ctrl_change_add(cslot, slot_no):
         ctrlslot.__run_ctrl_shell(cslot.filePath + "/ctrl_shell/ctrl_add_slot{}.sh".format(slot_no))
     
     @staticmethod
-    def ctrl_change_del(cslot:swslot, slot_no):
+    def ctrl_change_del(cslot, slot_no):
         ctrlslot.__run_ctrl_shell(cslot.filePath + "/ctrl_shell/ctrl_del_slot{}.sh".format(slot_no))
 
 

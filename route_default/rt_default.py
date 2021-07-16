@@ -1,6 +1,5 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-from topo_ovs.config.ctrlslot import ctrlslot
 from .rt_ctrl2db import rt_ctrl2db
 from .rt_ctrl2sw import rt_ctrl2sw
 from .rt_db2db import rt_db2db
@@ -128,7 +127,6 @@ class rt_default:
                     format(self.filePath,sw, slot_no,sw))
 
     def config2sh(self):
-        print("将默认流表配置转换为shell脚本，包括第一个时间片的和时间片切换需要增删的")
         with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
             # 初始化的流表，转换为shell脚本
             all_task = []
@@ -310,7 +308,6 @@ class rt_default:
 
     def load_rt_default(self):
         # 并发的下发所有默认流表
-        print("加载第一个时间片的默认流表")
         with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
             all_task = []
             for sw in range(self.sw_num):
