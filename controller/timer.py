@@ -1,6 +1,16 @@
-from .command_queue import command_queue
 from threading import Timer
-from ..utils import const_command
+from socket import *
+
+class UdpClient:
+    serverName = '127.0.0.1'
+    serverPort = 12000
+    socketAddress = (serverName, serverPort)
+    def __init__(self):
+        #define the type of socket is IPv4 and Udp
+        self.clientSocket = socket(AF_INET, SOCK_DGRAM)
+    
+    def sent_msg(self, msg:str):
+        self.clientSocket.sendto(msg.encode('utf-8'), self.socketAddress)
 
 # 定时切换
 class timer:
@@ -12,13 +22,14 @@ class timer:
         self.is_stoped = True  # 是否已经停止
         self.offset = offset
         self.command = command
+        self.socket = UdpClient()
         self.load_time_seq(timefile)
 
     def send_timer_command(self):
         # 向控制器发送命令，说明需要切换时间片
-        command_queue.write_queue((self.command, self.index))
         if(self.is_stoped):
             return False
+        self.socket.sent_msg(str(self.command) + " " + str(self.index))
         tmp  = self.index
         self.index = (self.index + 1) % self.slot_num
         Timer(self.time_list[tmp], self.send_timer_command).start()

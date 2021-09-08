@@ -1,10 +1,11 @@
 import os
-
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 class ctrlslot:
     def __init__(self, filePath:str) -> None:
         self.slot_num = 0   # 时间片的个数
         self.ctrl_slot = dict() # 所有时间片的数据
+        self.ctrl_slot_standby = dict() # 所有时间片的数据，备用控制器
         self.ctrl_slot_add = dict() # 所有时间片的数据
         self.ctrl_slot_del = dict() # 所有时间片的数据
         self.filePath = filePath
@@ -18,11 +19,11 @@ class ctrlslot:
             lines = file.read().splitlines()
             ctrl_num = int(lines[0].strip('\n')) # 获取控制器的数量
             del lines[0:1] # 删除前面的一行内容
-        data = dict()
-        ctrl = lines[::2]       # 控制器所在的卫星交换机的编号
-        ctrlsw = lines[1::2]    # 控制器控制的卫星交换机编号
-        for index in range(ctrl_num):
-            data[int(ctrl[index])] = list(map(int, ctrlsw[index].strip(' ').split(' ')))
+            data = dict()
+            ctrl = lines[::2]       # 控制器所在的卫星交换机的编号
+            ctrlsw = lines[1::2]    # 控制器控制的卫星交换机编号
+            for index in range(ctrl_num):
+                data[int(ctrl[index])] = list(map(int, ctrlsw[index].strip().split(' ')))
         return data
 
     def start(self, filePath:str):
@@ -39,11 +40,17 @@ class ctrlslot:
             for ctrl in self.ctrl_slot[next]:
                 if ctrl not in self.ctrl_slot[index]:
                     self.ctrl_slot_add[index].append(ctrl)
+        for index in range(self.slot_num):
+            with open(file=filePath + "/standby/standby_ctrl_{}".format(index)) as file:
+                lines = file.read().splitlines()
+                # sw_num = int(lines[0].strip('\n')) # 交换机的数量
+                # del lines[0:1] # 删除前面的一行内容
+                self.ctrl_slot_standby[index] = list(map(int, lines[1].strip().split())) 
 
     @staticmethod
     def __config2sh_ctrl_add(ctrl, file):
         # 加载一个控制器
-        file.write("echo 加载控制器c{}\n".format(ctrl))
+        # file.write("echo 加载控制器c{}\n".format(ctrl))
         p1 = "s{ctrl}-c{ctrl}".format(ctrl=ctrl)
         p2 = "c{ctrl}-s{ctrl}".format(ctrl=ctrl)
         file.write("sudo docker start c{ctrl} > /dev/null\n".format(ctrl=ctrl))
@@ -54,19 +61,21 @@ class ctrlslot:
             .format(ctrl=ctrl,p1=p1,p2=p2))
         file.write("sudo docker exec -it s{ctrl} ip link set dev {p1} up\n".format(ctrl=ctrl,p1=p1))
         file.write("sudo docker exec -it c{ctrl} ip link set dev {p2} up\n".format(ctrl=ctrl,p2=p2))
-        file.write("sudo docker exec -it c{ctrl} ip addr add 192.168.67.{ctrl_ip} dev {p2}\n".format(ctrl=ctrl,ctrl_ip=ctrl+1, p2=p2))
-        # file.write("sudo docker exec -it c{ctrl} /bin/bash /usr/src/openmul/mul.sh start mycontroller > /dev/null\n"\
-        #     .format(ctrl=ctrl))
+        file.write("sudo docker exec -it c{ctrl} ifconfig {p2} 192.168.67.{ctrl_ip} netmask 255.255.0.0 up\n".format(ctrl=ctrl, ctrl_ip=ctrl+1, p2=p2))
         # 设置控制器的默认路由
         file.write("sudo docker exec -it c{ctrl} ip route flush table main\n".format(ctrl=ctrl))
         file.write("sudo docker exec -it c{ctrl} route add default dev {p2}\n".format(ctrl=ctrl, p2=p2))
         # docker中的ovs连接端口
         file.write("sudo docker exec -it s{ctrl} ovs-vsctl add-port s{ctrl} {p1} -- set interface {p1} ofport_request={ctrl_port} > /dev/null\n".\
             format(ctrl=ctrl, p1=p1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,priority=2,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,priority=2,arp,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
+        file.write("sudo docker exec -it c{ctrl} /bin/bash /home/openmul/mul.sh init\n"\
+            .format(ctrl=ctrl))
+        file.write("sudo docker exec -it c{ctrl} /bin/bash /home/openmul/mul.sh start mulhello\n"\
+            .format(ctrl=ctrl))
 
     @staticmethod
     def __config2sh_ctrl_del(ctrl, file):
@@ -78,27 +87,65 @@ class ctrlslot:
         file.write("sudo docker exec -it s{ctrl} ovs-vsctl del-port s{ctrl} s{ctrl}-c{ctrl}\n".\
             format(ctrl=ctrl))
         file.write("sudo docker exec -it c{ctrl} ip link delete c{ctrl}-s{ctrl}\n".format(ctrl=ctrl))
-        # file.write("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh stop > /dev/null"\
-        #     .format(ctrl))
+        file.write("sudo docker exec -it c{} /bin/bash /home/openmul/mul.sh stop\n"\
+            .format(ctrl))
         file.write("sudo docker stop c{}\n".format(ctrl))
 
     def config2sh(self):
         with open(self.filePath + "/ctrl_shell/ctrl_init.sh", 'w+') as file:
             for ctrl in self.ctrl_slot[0]:
+                file.write("sudo docker cp {}/ctrl_connect/slot_0_ctrl_{} $(sudo docker ps -aqf\"name=^c{}$\"):/home/ctrl_connect\n"\
+                    .format(self.filePath,ctrl,ctrl))
                 ctrlslot.__config2sh_ctrl_add(ctrl,file)
-            # for ctrl in self.ctrl_slot_add[0]:
-            #     ctrlslot.__config2sh_ctrl_add(ctrl,file)
         for slot_no in self.ctrl_slot_add:
             with open(self.filePath + "/ctrl_shell/ctrl_add_slot{}.sh".format(slot_no), 'w+') as file:
+                for ctrl in self.ctrl_slot[(slot_no+1)%len(self.ctrl_slot_add)]:
+                    file.write("sudo docker cp {}/ctrl_connect/slot_{}_ctrl_{} $(sudo docker ps -aqf\"name=^c{}$\"):/home/ctrl_connect\n"\
+                        .format(self.filePath,(slot_no+1)%len(self.ctrl_slot_add),ctrl,ctrl))
                 for ctrl in self.ctrl_slot_add[slot_no]:
                     ctrlslot.__config2sh_ctrl_add(ctrl,file)
             with open(self.filePath + "/ctrl_shell/ctrl_del_slot{}.sh".format(slot_no), 'w+') as file:
                 for ctrl in self.ctrl_slot_del[slot_no]:
                     ctrlslot.__config2sh_ctrl_del(ctrl,file)
+            with open(self.filePath + "/ctrl_shell/ctrl_restart_slot{}.sh".format(slot_no), 'w+') as file:
+                for ctrl in self.ctrl_slot[slot_no]:
+                    if ctrl not in self.ctrl_slot_add[slot_no] and ctrl not in self.ctrl_slot_del[slot_no]:
+                        file.write("sudo docker exec -it c{} /bin/bash /home/openmul/mul.sh stop\n"\
+                            .format(ctrl))
+                        file.write("sudo docker exec -it c{} /bin/bash /home/openmul/mul.sh start mulhello\n"\
+                            .format(ctrl))
+            datactrl = self.ctrl_slot[slot_no]
+            for ctrl_no in datactrl:
+                for sw in datactrl[ctrl_no]:
+                    with open(self.filePath + "/standby_shell/sw{}_standby_slot{}.sh".format(sw, slot_no), 'w+') as file:
+                        ctrl_no_standby = self.ctrl_slot_standby[slot_no][sw]
+                        file.write("ping -c3 -i0.2 -W1 192.168.67.{}  &> /dev/null\n".format(ctrl_no+1))
+                        file.write("if [ $? -eq 0 ];then \novs-vsctl set-controller s{sw} tcp:192.168.67.{ctrl_master}:6653 -- set bridge s{sw} other_config:enable-flush=false\nelse \novs-vsctl set-controller s{sw} tcp:192.168.67.{ctrl_standby}:6653 -- set bridge s{sw} other_config:enable-flush=false \nfi\n"
+                            .format(sw=sw, ctrl_master=ctrl_no+1,ctrl_standby=ctrl_no_standby+1))
+                    # os.system("sudo docker cp {}/standby_shell/sw{}_standby_slot{}.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home\n"\
+                    #     .format(self.filePath,sw,slot_no,sw))
+                        # file.write("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}:6653 -- set bridge s{} other_config:enable-flush=false,fail-mode=secure\n"\
+                        #         .format(sw, sw, ctrl_no+1, sw))
+        for slot_no in self.ctrl_slot_add:
+            with ThreadPoolExecutor(max_workers=len(self.ctrl_slot_standby[slot_no])) as pool:
+                all_task = []
+                for sw in range(len(self.ctrl_slot_standby[slot_no])):
+                    all_task.append(pool.submit(ctrlslot.docker_cp, sw, "{}/standby_shell/sw{}_standby_slot{}.sh".format(self.filePath,sw,slot_no)))
+                wait(all_task, return_when=ALL_COMPLETED)
+        # for slot_no in self.ctrl_slot_add:
+        #     str = ""
+        #     for sw in range(len(self.ctrl_slot_standby[slot_no])):
+        #         str += "sudo docker cp {}/standby_shell/sw{}_standby_slot{}.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home\n"\
+        #                 .format(self.filePath,sw,slot_no,sw)
+        #     os.system(str)
+
+    @staticmethod
+    def docker_cp(sw, filename):
+        os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home\n".format(filename,sw))
 
     @staticmethod
     def __run_ctrl_shell(filename):
-        os.system("sudo chmod +x {};sudo /bin/bash {}".format(filename, filename))
+        os.system("sudo chmod +x {};sudo /bin/bash {} > /dev/null".format(filename, filename))
 
     def ctrl_init(self):
         ctrlslot.__run_ctrl_shell(self.filePath + "/ctrl_shell/ctrl_init.sh")

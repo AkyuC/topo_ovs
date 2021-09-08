@@ -1,0 +1,19 @@
+dyn_o_mite:
+  datacenter: dc1
+  rack: rack2
+  dyn_listen: 192.168.68.21:8101
+  dyn_seeds:
+  - 192.168.68.2:8101:rack1:dc1:111
+  - 192.168.68.27:8101:rack3:dc1:333
+  - 192.168.68.41:8101:rack4:dc1:444
+  - 192.168.68.46:8101:rack5:dc1:555
+  - 192.168.68.54:8101:rack6:dc1:666
+  data_store: 0
+  listen: 192.168.68.21:8102
+  dyn_seed_provider: simple_provider
+  servers:
+  - 192.168.68.21:6379:1
+  tokens: 222
+  secure_server_option: none
+  stats_listen: 127.0.0.1:30002
+  max_msgs: 500000

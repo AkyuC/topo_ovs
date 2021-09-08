@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 class swslot:
     def __init__(self, filePath:str) -> None:
         self.slot_num = 0   # 时间片的个数
+        self.sw_num = 0
         self.data_slot = dict() # 所有时间片的数据
         self.diff_data = dict() # 存储不同时间片之间需要改变的链路信息
         self.filePath = filePath
@@ -51,43 +52,66 @@ class swslot:
             self.data_slot[slot_no] = swslot.load_slot(filePath + "/timeslot/test_" + str(slot_no))
         for slot_no in range(self.slot_num):
             self.diff_data[slot_no] = swslot.diff_slot(self.data_slot[slot_no], self.data_slot[(slot_no+1)%self.slot_num])
+        self.sw_num = len(self.data_slot[0])
 
     def cpsh2docker(self):
         data = self.data_slot[0]
-        for sw in data:
-            os.system("sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
-                .format(self.filePath,sw,sw))
-        for slot_no in range(self.slot_num):
-            for sw in self.diff_data[slot_no]:
-                filename = self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)
-                os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
-            for sw in self.diff_data[slot_no]:
-                filename = self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)
-                os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
+        with open("./tmp.sh",'w+') as file:
+            for sw in data:
+                file.write("sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
+                    .format(self.filePath,sw,sw))
+            for slot_no in range(self.slot_num):
+                for sw in self.diff_data[slot_no]:
+                    filename = self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)
+                    file.write("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
+                for sw in self.diff_data[slot_no]:
+                    filename = self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)
+                    file.write("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
+        os.system("sudo chmod +x ./tmp.sh; ./tmp.sh")
+        os.system("sudo rm ./tmp.sh")
 
     def config2sh(self):
         links_set = set()
         data = self.data_slot[0]
         for sw in data:
             with open(self.filePath + "/sw_shell/sw{}_link_init.sh".format(sw), 'w+') as file:
+                file.write("ip route flush table main\n".format(sw))
                 file.write("chmod +x /home/ovs_open.sh; ./home/ovs_open.sh > /dev/null\n")
-                file.write("ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other-config:datapath-id={}\n".format(
+                file.write("ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other_config:datapath-id={}\n".format(
                         sw, sw, sw))
+                file.write("ovs-vsctl set bridge s{} other_config:datapath-id={:016X}\n".format(sw,sw))
+                file.write("ovs-vsctl set bridge s{} other_config:enable-flush=false\n".format(sw))
+                file.write("ovs-vsctl set-fail-mode s{} secure\n".format(sw))
                 # 添加本地端口和默认路由
-                p1 = "s{}-h{}".format(sw, sw)
-                p2 = "h{}-s{}".format(sw, sw)
-                file.write("ip link add {} type veth peer name {}\n".format(p1, p2))
-                file.write("ifconfig {} 192.168.66.{} up\n".format(p2, sw+1))
-                file.write("route add default dev {}\n".format(p2))
-                file.write("ip link set dev {} up\n".format(p1))
-                file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n".\
-                    format(sw, p1, p1, sw+2000))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=1 action=drop\"\n"\
+                # p1 = "s{}-h{}".format(sw, sw)
+                # p2 = "h{}-s{}".format(sw, sw)
+                # file.write("ip link add {} type veth peer name {}\n".format(p1, p2))
+                # file.write("ifconfig {} 192.168.66.{} netmask 255.255.0.0 up\n".format(p2, sw+1))
+                # file.write("ip link set dev {} up\n".format(p1))
+                # file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n".\
+                #     format(sw, p1, p1, sw+2000))
+                # file.write("route add default dev {}\n".format(p2))
+                # file.write("ovs-vsctl set-controller s{} tcp:192.168.100.1:6653 -- set bridge s{} other_config:enable-flush=false\n"\
+                #     .format(sw, sw))
+                # file.write("sleep 10s\n")
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=10 action=drop\"\n"\
+                #     .format(sw))
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=100,arp,nw_dst=192.168.10.1 action=drop\"\n"\
+                #     .format(sw))
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.66.{} action=output:{}\"\n"\
+                #     .format(sw, sw+1, sw+2000))
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_dst=192.168.66.{} action=output:{}\"\n"\
+                #     .format(sw, sw+1, sw+2000))
+                file.write("ifconfig s{} 192.168.66.{} netmask 255.255.0.0 up\n".format(sw, sw+1))
+                file.write("route add default dev s{}\n".format(sw))
+                file.write("ovs-vsctl set-controller s{} tcp:192.168.100.1:6653 -- set bridge s{} other_config:enable-flush=false\n"\
+                    .format(sw, sw))
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=10 action=drop\"\n"\
                     .format(sw))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=2,ip,nw_dst=192.168.66.{} action=output:{}\"\n"\
-                    .format(sw, sw+1, sw+2000))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=2,arp,nw_dst=192.168.66.{} action=output:{}\"\n"\
-                    .format(sw, sw+1, sw+2000))
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                    .format(sw, sw+1))
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                    .format(sw, sw+1))
                 for adj_sw in data[sw]:
                     p = "s{}-s{}".format(sw, adj_sw)
                     if (sw, adj_sw, data[sw][adj_sw]) not in links_set and \
@@ -96,15 +120,18 @@ class swslot:
                     file.write("ip link set dev {} up\n".format(p))
                     file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n"\
                         .format(sw, p, p, adj_sw+1000))
-                    file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
-                    file.write("tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit\n"\
-                        .format(p,500,500))
-                    file.write("tc qdisc add dev {} parent 5:1 handle 10: netem delay {}ms\n".format(p,int(data[sw][adj_sw]*1000)))
+                    # file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
+                    # file.write("tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit\n"\
+                    #     .format(p,80000,80000))
+                    file.write("tc qdisc add dev {} root netem delay {}ms\n".format(p,int(data[sw][adj_sw]*1000)))
             os.system("sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
                     .format(self.filePath,sw,sw))
         with open(self.filePath + "/sw_shell/link_init.sh", 'w+') as file:
             for sw in data:
                 file.write("sudo docker start s{} > /dev/null\n".format(sw))
+                file.write("sudo docker exec -it s{} sysctl -p\n".format(sw))
+                # file.write("sudo docker exec -it s{} echo 0 > /proc/sys/net/ipv4/ip_forward\n".format(sw))
+                # file.write("sudo docker exec -it s{} echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore\n".format(sw))
             for link in links_set:
                 p1 = "s{}-s{}".format(link[0],link[1])
                 p2 = "s{}-s{}".format(link[1],link[0])
@@ -148,7 +175,7 @@ class swslot:
             for link in dlist:
                 p = "s{}-s{}".format(link[1],link[2])
                 if link[0] ==  0:
-                    file.write("tc qdisc change dev {} parent 5:1 handle 10: netem delay {}ms\n".\
+                    file.write("tc qdisc change dev {} root netem delay {}ms\n".\
                         format(p,int(link[3]*1000)))
                 elif link[0] == -1:
                     file.write("ovs-vsctl del-port s{} {}\n".format(link[1], p))
@@ -174,10 +201,6 @@ class swslot:
                 p2 = "s{}-s{}".format(link[2],link[1])
                 if link[0] == 1:
                     file.write("sudo ip link add {} type veth peer name {}\n".format(p1, p2))
-                    # file.write("ovspid1=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n".format(link[1]))
-                    # file.write("ovspid2=$(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n".format(link[2]))
-                    # file.write("sudo ip link set dev {} name {} netns ${{ovspid1}}\n".format(p1, p1))
-                    # file.write("sudo ip link set dev {} name {} netns ${{ovspid2}}\n".format(p2, p2))
                     file.write("sudo ip link set dev {} name {} netns $(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n"
                         .format(p1, p1, link[1]))
                     file.write("sudo ip link set dev {} name {} netns $(sudo docker inspect -f '{{{{.State.Pid}}}}' s{})\n"\
@@ -195,10 +218,10 @@ class swslot:
                     file.write("ip link set dev {} up\n".format(p))
                     file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n"\
                         .format(link[1], p, p, link[2]+1000))
-                    file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
-                    file.write("tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit\n"\
-                        .format(p,500,500))
-                    file.write("tc qdisc add dev {} parent 5:1 handle 10: netem delay {}ms\n".format(p,int(link[3]*1000)))
+                    # file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
+                    # file.write("tc class add dev {} parent 5:0 classid 5:1 hfsc sc rate {}Mbit ul rate {}Mbit\n"\
+                    #     .format(p,80000,80000))
+                    file.write("tc qdisc add dev {} root netem delay {}ms\n".format(p,int(link[3]*1000)))
         os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
 
     @staticmethod
@@ -238,6 +261,11 @@ class swslot:
     @staticmethod
     def sw_links_change(dslot, slot_no):
         # 时间片切换，拓扑切换
+        # for sw in dslot.data_slot[0]:
+        #     ppool.apply_async(swslot.__a_sw_links_change_dc, (sw, slot_no,))
+        # ppool.apply_async(swslot.__sw_links_change, ("{}/sw_shell/change_links_slot{}.sh".format(dslot.filePath, slot_no),))
+        # for sw in dslot.data_slot[0]:
+        #     ppool.apply_async(swslot.__a_sw_links_change_add, (sw, slot_no,))
         with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
             all_task = []
             # print("links_change_dc")

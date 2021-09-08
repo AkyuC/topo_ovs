@@ -1,13 +1,24 @@
 from threading import Thread
-from .command_queue import command_queue
 from .timer import timer
-from ..utils import const_command
-from ..route_default.rt_default import rt_default
-from ..topo.swslot import swslot
-from ..topo.ctrlslot import ctrlslot
-from ..topo.dbload import dbload
+from utils import const_command
+from route_default.rt_default import rt_default
+from topo.swslot import swslot
+from topo.ctrlslot import ctrlslot
+from topo.dbload import dbload
 import os
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+from socket import *
+import multiprocessing
 
+class UdpServer:
+    def __init__(self):
+        #define the type of socket is IPv4 and Udp
+        self.serverSocket = socket(AF_INET, SOCK_DGRAM)
+        self.serverSocket.bind(('', 12000))
+    
+    def recv_msg(self):
+        msg, addr = self.serverSocket.recvfrom(2048)
+        return msg.decode('utf-8')
 
 def load_command():
     # 命令常量定义
@@ -15,57 +26,60 @@ def load_command():
     const_command.cli_run_topo = 0
     const_command.cli_run_iperf = 1
     const_command.cli_stop_iperf = 2
-    const_command.cli_sw_shutdown = 3
-    const_command.cli_sw_recover = 4
-    const_command.cli_ctrl_shutdown = 5
-    const_command.cli_ctrl_recover = 6
-    const_command.cli_db_shutdown = 7
-    const_command.cli_db_recover = 8
-    const_command.cli_stop_all = 9
+    const_command.cli_ctrl_shutdown = 3
+    const_command.cli_ctrl_recover = 4
+    const_command.cli_db_shutdown = 5
+    const_command.cli_db_recover = 6
+    const_command.cli_stop_all = 7
     # timer定时器切换命令
-    const_command.timer_diff = 10
-    const_command.timer_rt_diff = 11
+    const_command.timer_diff = 8
+    const_command.timer_rt_diff = 9
+
+def sw_connect_ctrl(sw, slot_no):
+    # 卫星交换机连接控制器
+    # os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}:6653 -- set bridge s{} other_config:enable-flush=false"\
+    #     .format(sw, sw, ctrl+1, sw))
+    os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
+        .format(sw=sw, slot_no=slot_no))
+
+def run_shell(file):
+    # 运行shell文件
+    os.system("sudo chmod +x {file}; sudo {file}".format(file=file))
 
 class controller:
     def __init__(self, filePath:str) -> None:
+        self.filePath = filePath
         # 加载卫星交换机拓扑
         self.dslot = swslot(filePath + '/config')
         # 加载openmul控制器
         self.cslot = ctrlslot(filePath + '/config')
         # 加载分布式数据库
-        self.dbdata = dbload(filePath + '/config/rt_ctrl2db/db_deploy')
+        self.dbdata = dbload(filePath + '/config')
         # 加载时间片序列
-        self.topotimer = timer(filePath + '/config/timeslot/timefile', 0, 10)
-        self.rttimer = timer(filePath + '/config/timeslot/timefile', 20, 11)
-        # 初始化默认流表
-        self.rt_default = rt_default(filePath + "/config")
-        # self.rt_ctrl2db = rt_ctrl2db(filePath + '/config/rt_ctrl2db')
-        # self.rt_ctrl2sw = rt_ctrl2sw(filePath + '/config/rt_ctrl2sw')
-        # self.rt_db2db = rt_db2db(filePath + '/config/rt_db2db')
-        # self.rt_sw2sw = rt_sw2sw(filePath + '/config/rt_sw2sw')
+        self.topotimer = timer(filePath + '/config/timeslot/timefile', 0, 8)
+        self.rttimer = timer(filePath + '/config/timeslot/timefile', 20, 9)
         # 加载指令
         load_command()
         self.status = False
+        self.socket = UdpServer()
         self.start()
 
     def __do_start(self):
         # 控制器从消息队列中获取指令，并且执行对应的函数
         while True:
-            command = command_queue.read_queue_wait()
+            command = self.socket.recv_msg().split()
+            command = list(map(int, command))
             if self.status == False: return
 
             if(command[0] == const_command.cli_run_topo):
-                # rt_ctrl2db.load_rt_ctrl2db(self.rt_ctrl2db.rt_ctrl2db_slot[0], self.rt_ctrl2db.rt_db2ctrl_slot[0])
-                # rt_ctrl2sw.load_rt_ctrl2sw(self.rt_ctrl2sw.rt_ctrl2sw_slot[0], self.rt_ctrl2sw.rt_sw2ctrl_slot[0])
-                # rt_db2db.load_rt_db2db(self.rt_db2db.rt_db2db_slot[0])
-                # rt_sw2sw.load_rt_sw2sw(self.rt_sw2sw.rt_sw2sw_slot0)
-                # self.rt_default.load_rt_default()
-                # 设置卫星交换机连接控制器
-                datactrl = self.cslot.ctrl_slot[0]
-                for ctrl in datactrl:
-                    for sw in datactrl[ctrl]:
-                        os.system("sudo docker exec -it s{} ovs-vsctl set-controller \
-                            s{} tcp:192.168.67.{}:6653".format(sw, sw+1, ctrl))
+                print("开始运行topo!")
+                # # 设置卫星交换机连接控制器
+                with ThreadPoolExecutor(max_workers=self.dslot.sw_num) as pool:
+                    all_task = []
+                    # for ctrl in datactrl:
+                    for sw in range(self.dslot.sw_num):
+                        all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
+                    wait(all_task, return_when=ALL_COMPLETED)
                 self.topotimer.start()
                 self.rttimer.start()
 
@@ -87,25 +101,34 @@ class controller:
 
             elif(command[0] ==  const_command.timer_diff):
                 slot_no = command[1]   # 获取切换的时间片
+                
+                Thread(target=run_shell, args=("{}/config/ctrl_shell/ctrl_restart_slot{}.sh > /dev/null"\
+                    .format(self.filePath,slot_no),)).start()
+
                 print("第{}个时间片切换，topo的链路修改".format(slot_no))
                 swslot.sw_links_change(self.dslot, slot_no)
-                # 设置卫星交换机连接控制器
-                cslot_b = self.cslot.ctrl_slot[slot_no]
-                cslot_n = self.cslot.ctrl_slot[slot_no + 1]
-                for ctrl in cslot_n:
-                    for sw in cslot_n[ctrl]:
-                        if sw not in cslot_b[ctrl]:
-                            os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}:6653".format(sw, sw, ctrl))
-                print("第{}个时间片切换，删除不需要的控制器\n".format(slot_no))
-                Thread(target=ctrlslot.ctrl_change_del, args=(self.cslot, slot_no)).start()
+
+                print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
+                with ThreadPoolExecutor(max_workers=self.dslot.sw_num) as pool:
+                    all_task = []
+                    for sw in range(self.dslot.sw_num):
+                        all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
+                    wait(all_task, return_when=ALL_COMPLETED)
+
+                print("第{}个时间片切换，删除不需要的控制器和相关的路由\n".format(slot_no))
+                ctrlslot.ctrl_change_del(self.cslot, slot_no)
+                rt_default.del_rt_default_ctrl(len(self.dslot.data_slot[0]), slot_no)
+
 
             elif(command[0] ==  const_command.timer_rt_diff):
                 slot_no = command[1]   # 获取切换的时间片
-                print("第{}个时间片切换默认路由\n".format(slot_no))
-                rt_default.change_rt_default(self.rt_default.sw_num, slot_no)
-                print("第{}个时间片切换，添加下一个时间片的控制器\n".format(slot_no))
-                Thread(target=ctrlslot.ctrl_change_add, args=(self.cslot, slot_no)).start()
-                
+                print("第{}个时间片切换默认路由".format(slot_no))
+                rt_default.change_rt_default(len(self.dslot.data_slot[0]), slot_no)
+
+                print("第{}个时间片切换，添加下一个时间片的控制器".format(slot_no))
+                ctrlslot.ctrl_change_add(self.cslot, slot_no)
+                # self.rttimer.stop()
+
     def start(self):
         # 开启线程
         if self.status:

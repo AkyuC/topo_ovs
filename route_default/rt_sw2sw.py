@@ -1,6 +1,4 @@
 import os
-from .rt_db2db import rt_db2db
-import threading
 
 
 class rt_sw2sw:

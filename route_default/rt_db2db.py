@@ -1,5 +1,4 @@
 import os
-import threading
 
 
 class rt_db2db:
