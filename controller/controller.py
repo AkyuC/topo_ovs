@@ -8,7 +8,7 @@ from topo.dbload import dbload
 import os
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 from socket import *
-import multiprocessing
+from time import sleep
 
 class UdpServer:
     def __init__(self):
@@ -39,11 +39,13 @@ def sw_connect_ctrl(sw, slot_no):
     # 卫星交换机连接控制器
     # os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}:6653 -- set bridge s{} other_config:enable-flush=false"\
     #     .format(sw, sw, ctrl+1, sw))
+    # print("slot:{}, sw:{}".format(slot_no, sw))
     os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
         .format(sw=sw, slot_no=slot_no))
 
 def run_shell(file):
     # 运行shell文件
+    # print("run {}".format(file))
     os.system("sudo chmod +x {file}; sudo {file}".format(file=file))
 
 class controller:
@@ -74,10 +76,9 @@ class controller:
             if(command[0] == const_command.cli_run_topo):
                 print("开始运行topo!")
                 # # 设置卫星交换机连接控制器
-                with ThreadPoolExecutor(max_workers=self.dslot.sw_num) as pool:
+                with ThreadPoolExecutor(max_workers=40) as pool:
                     all_task = []
-                    # for ctrl in datactrl:
-                    for sw in range(self.dslot.sw_num):
+                    for sw in range(40):
                         all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
                     wait(all_task, return_when=ALL_COMPLETED)
                 self.topotimer.start()
@@ -100,22 +101,21 @@ class controller:
                 return
 
             elif(command[0] ==  const_command.timer_diff):
-                slot_no = command[1]   # 获取切换的时间片
-                
-                Thread(target=run_shell, args=("{}/config/ctrl_shell/ctrl_restart_slot{}.sh > /dev/null"\
-                    .format(self.filePath,slot_no),)).start()
+                slot_no = command[1]   # 获取切换的时间片序号
 
                 print("第{}个时间片切换，topo的链路修改".format(slot_no))
+                Thread(target=run_shell, args=("{}/config/ctrl_shell/ctrl_restart_slot{}.sh > /dev/null"\
+                    .format(self.filePath,slot_no),)).start()
                 swslot.sw_links_change(self.dslot, slot_no)
 
                 print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-                with ThreadPoolExecutor(max_workers=self.dslot.sw_num) as pool:
+                with ThreadPoolExecutor(max_workers=40) as pool:
                     all_task = []
-                    for sw in range(self.dslot.sw_num):
+                    for sw in range(40):
                         all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
                     wait(all_task, return_when=ALL_COMPLETED)
 
-                print("第{}个时间片切换，删除不需要的控制器和相关的路由\n".format(slot_no))
+                print("第{}个时间片切换，删除不需要的控制器和路由\n".format(slot_no))
                 ctrlslot.ctrl_change_del(self.cslot, slot_no)
                 rt_default.del_rt_default_ctrl(len(self.dslot.data_slot[0]), slot_no)
 
@@ -127,7 +127,7 @@ class controller:
 
                 print("第{}个时间片切换，添加下一个时间片的控制器".format(slot_no))
                 ctrlslot.ctrl_change_add(self.cslot, slot_no)
-                # self.rttimer.stop()
+
 
     def start(self):
         # 开启线程

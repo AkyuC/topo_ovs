@@ -266,15 +266,14 @@ class swslot:
         # ppool.apply_async(swslot.__sw_links_change, ("{}/sw_shell/change_links_slot{}.sh".format(dslot.filePath, slot_no),))
         # for sw in dslot.data_slot[0]:
         #     ppool.apply_async(swslot.__a_sw_links_change_add, (sw, slot_no,))
-        with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
+        # with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
+        with ThreadPoolExecutor(max_workers=40) as pool:
             all_task = []
-            # print("links_change_dc")
             for sw in dslot.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_change_dc, sw, slot_no))
             all_task.append(pool.submit(swslot.__sw_links_change, "{}/sw_shell/change_links_slot{}.sh".format(dslot.filePath, slot_no)))
             wait(all_task, return_when=ALL_COMPLETED)
             all_task.clear()
-            # print("links_change_add")
             for sw in dslot.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_change_add, sw, slot_no))
             wait(all_task, return_when=ALL_COMPLETED)
