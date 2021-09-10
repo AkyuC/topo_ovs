@@ -76,9 +76,9 @@ class controller:
             if(command[0] == const_command.cli_run_topo):
                 print("开始运行topo!")
                 # # 设置卫星交换机连接控制器
-                with ThreadPoolExecutor(max_workers=40) as pool:
+                with ThreadPoolExecutor(max_workers=35) as pool:
                     all_task = []
-                    for sw in range(40):
+                    for sw in range(35):
                         all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
                     wait(all_task, return_when=ALL_COMPLETED)
                 self.topotimer.start()
@@ -109,9 +109,9 @@ class controller:
                 swslot.sw_links_change(self.dslot, slot_no)
 
                 print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-                with ThreadPoolExecutor(max_workers=40) as pool:
+                with ThreadPoolExecutor(max_workers=35) as pool:
                     all_task = []
-                    for sw in range(40):
+                    for sw in range(35):
                         all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
                     wait(all_task, return_when=ALL_COMPLETED)
 
