@@ -6,7 +6,7 @@ print = functools.partial(print, end='')
 from socket import *
 class UdpClient:
     serverName = '127.0.0.1'
-    serverPort = 12000
+    serverPort = 12001
     socketAddress = (serverName, serverPort)
     def __init__(self):
         #define the type of socket is IPv4 and Udp
@@ -35,7 +35,7 @@ class cli:
                     # ">-- 4.controller recover test + controller number(0 ~ 15)\n"
                     # ">-- 5.database shutdown test + database number(0 ~ 3)\n"
                     # ">-- 6.database recover test + database number(0 ~ 3)\n"
-                    # ">-- 7.stop all and exit\n"
+                    ">-- 7.stop all and exit\n"
                     )
 
                 command = input(">Input commands:\n").strip()

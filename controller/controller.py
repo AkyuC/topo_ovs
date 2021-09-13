@@ -14,7 +14,7 @@ class UdpServer:
     def __init__(self):
         #define the type of socket is IPv4 and Udp
         self.serverSocket = socket(AF_INET, SOCK_DGRAM)
-        self.serverSocket.bind(('', 12000))
+        self.serverSocket.bind(('', 12001))
     
     def recv_msg(self):
         msg, addr = self.serverSocket.recvfrom(2048)
@@ -35,18 +35,26 @@ def load_command():
     const_command.timer_diff = 8
     const_command.timer_rt_diff = 9
 
-def sw_connect_ctrl(sw, slot_no):
+def sw_connect_ctrl_init(sw, ip_master, ip_standby):
+    os.system("(sudo docker exec s{} /home/sw_slot_change {} {} {} > /dev/null &) ".format(sw, sw, ip_master+1, ip_standby+1))
+
+def sw_connect_ctrl(sw, ip_master, ip_standby):
     # 卫星交换机连接控制器
     # os.system("sudo docker exec -it s{} ovs-vsctl set-controller s{} tcp:192.168.67.{}:6653 -- set bridge s{} other_config:enable-flush=false"\
     #     .format(sw, sw, ctrl+1, sw))
     # print("slot:{}, sw:{}".format(slot_no, sw))
-    os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
-        .format(sw=sw, slot_no=slot_no))
+    # os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
+    #     .format(sw=sw, slot_no=slot_no))
+    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/localhost/12000\"".format(sw, ip_master+1, ip_standby+1))
 
 def run_shell(file):
     # 运行shell文件
     # print("run {}".format(file))
     os.system("sudo chmod +x {file}; sudo {file}".format(file=file))
+
+def ctrl_get_slot_change(slot_no, ctrl_list):
+    for ctrl_no in ctrl_list:
+        os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(ctrl_no, slot_no))
 
 class controller:
     def __init__(self, filePath:str) -> None:
@@ -76,10 +84,11 @@ class controller:
             if(command[0] == const_command.cli_run_topo):
                 print("开始运行topo!")
                 # # 设置卫星交换机连接控制器
-                with ThreadPoolExecutor(max_workers=35) as pool:
+                with ThreadPoolExecutor(max_workers=30) as pool:
                     all_task = []
-                    for sw in range(35):
-                        all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
+                    for sw in range(self.dslot.sw_num):
+                        # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
+                        all_task.append(pool.submit(sw_connect_ctrl_init, sw, self.cslot.sw2ctrl[0][sw], self.cslot.sw2ctrl_standby[0][sw]))
                     wait(all_task, return_when=ALL_COMPLETED)
                 self.topotimer.start()
                 self.rttimer.start()
@@ -104,15 +113,17 @@ class controller:
                 slot_no = command[1]   # 获取切换的时间片序号
 
                 print("第{}个时间片切换，topo的链路修改".format(slot_no))
-                Thread(target=run_shell, args=("{}/config/ctrl_shell/ctrl_restart_slot{}.sh > /dev/null"\
-                    .format(self.filePath,slot_no),)).start()
+                # Thread(target=run_shell, args=("{}/config/ctrl_shell/ctrl_restart_slot{}.sh > /dev/null"\
+                #     .format(self.filePath,slot_no),)).start()
+                Thread(target=ctrl_get_slot_change, args=(slot_no, self.cslot.ctrl_slot_stay[slot_no],)).start()
                 swslot.sw_links_change(self.dslot, slot_no)
 
                 print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-                with ThreadPoolExecutor(max_workers=35) as pool:
+                with ThreadPoolExecutor(max_workers=30) as pool:
                     all_task = []
-                    for sw in range(35):
-                        all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
+                    for sw in range(self.dslot.sw_num):
+                        # all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
+                        all_task.append(pool.submit(sw_connect_ctrl, sw, self.cslot.sw2ctrl[slot_no+1][sw], self.cslot.sw2ctrl_standby[slot_no+1][sw]))
                     wait(all_task, return_when=ALL_COMPLETED)
 
                 print("第{}个时间片切换，删除不需要的控制器和路由\n".format(slot_no))

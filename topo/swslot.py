@@ -10,6 +10,15 @@ class swslot:
         self.diff_data = dict() # 存储不同时间片之间需要改变的链路信息
         self.filePath = filePath
         self.start(filePath)
+        with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
+            all_task = []
+            for sw in self.data_slot[0]:
+                all_task.append(pool.submit(swslot.docker_cp, sw, "{}/slot_change/sw_slot_change".format(os.path.dirname(os.path.dirname(__file__)))))
+            wait(all_task, return_when=ALL_COMPLETED)
+
+    @staticmethod
+    def docker_cp(sw, filename):
+        os.system("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home\n".format(filename,sw))
 
     @staticmethod
     def load_slot(filename:str):
@@ -267,7 +276,7 @@ class swslot:
         # for sw in dslot.data_slot[0]:
         #     ppool.apply_async(swslot.__a_sw_links_change_add, (sw, slot_no,))
         # with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
-        with ThreadPoolExecutor(max_workers=35) as pool:
+        with ThreadPoolExecutor(max_workers=30) as pool:
             all_task = []
             for sw in dslot.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_change_dc, sw, slot_no))

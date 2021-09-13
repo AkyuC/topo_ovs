@@ -30,9 +30,9 @@ class timer:
         if(self.is_stoped):
             return False
         self.socket.sent_msg(str(self.command) + " " + str(self.index))
-        tmp  = self.index
+        # tmp  = self.index
         self.index = (self.index + 1) % self.slot_num
-        Timer(self.time_list[tmp], self.send_timer_command).start()
+        Timer(self.time_list[self.index], self.send_timer_command).start()
 
     def start(self):
         if(not self.is_stoped):
