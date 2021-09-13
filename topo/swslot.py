@@ -276,7 +276,7 @@ class swslot:
         # for sw in dslot.data_slot[0]:
         #     ppool.apply_async(swslot.__a_sw_links_change_add, (sw, slot_no,))
         # with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
-        with ThreadPoolExecutor(max_workers=30) as pool:
+        with ThreadPoolExecutor(max_workers=25) as pool:
             all_task = []
             for sw in dslot.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_change_dc, sw, slot_no))

@@ -3,7 +3,7 @@ from socket import *
 
 class UdpClient:
     serverName = '127.0.0.1'
-    serverPort = 12000
+    serverPort = 12001
     socketAddress = (serverName, serverPort)
     def __init__(self):
         #define the type of socket is IPv4 and Udp

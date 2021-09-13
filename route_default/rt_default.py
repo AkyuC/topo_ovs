@@ -389,7 +389,7 @@ class rt_default:
         # 时间片切换，删除控制器相关不需要的流表
         # for sw in range(sw_num):
         #     ppool.apply_async(rt_default.__del_rt_a_default_ctrl, (sw, slot_no,))
-        with ThreadPoolExecutor(max_workers=30) as pool:
+        with ThreadPoolExecutor(max_workers=25) as pool:
             all_task = []
             for sw in range(sw_num):
                 all_task.append(pool.submit(rt_default.__del_rt_a_default_ctrl, sw, slot_no))
@@ -419,7 +419,7 @@ class rt_default:
         # for sw in range(sw_num):
         #     ppool.apply_async(rt_default.__del_rt_a_default, (sw, slot_no,))
 
-        with ThreadPoolExecutor(max_workers=30) as pool:
+        with ThreadPoolExecutor(max_workers=25) as pool:
             all_task = []
             # for sw in range(sw_num):
             #     all_task.append(pool.submit(rt_default.__del_rt_a_default, sw, slot_no))

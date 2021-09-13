@@ -67,7 +67,7 @@ class controller:
         self.dbdata = dbload(filePath + '/config')
         # 加载时间片序列
         self.topotimer = timer(filePath + '/config/timeslot/timefile', 0, 8)
-        self.rttimer = timer(filePath + '/config/timeslot/timefile', 20, 9)
+        self.rttimer = timer(filePath + '/config/timeslot/timefile', 30, 9)
         # 加载指令
         load_command()
         self.status = False
@@ -84,12 +84,13 @@ class controller:
             if(command[0] == const_command.cli_run_topo):
                 print("开始运行topo!")
                 # # 设置卫星交换机连接控制器
-                with ThreadPoolExecutor(max_workers=30) as pool:
+                with ThreadPoolExecutor(max_workers=25) as pool:
                     all_task = []
                     for sw in range(self.dslot.sw_num):
                         # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
                         all_task.append(pool.submit(sw_connect_ctrl_init, sw, self.cslot.sw2ctrl[0][sw], self.cslot.sw2ctrl_standby[0][sw]))
                     wait(all_task, return_when=ALL_COMPLETED)
+                print("启动定时器!")
                 self.topotimer.start()
                 self.rttimer.start()
 
@@ -119,7 +120,7 @@ class controller:
                 swslot.sw_links_change(self.dslot, slot_no)
 
                 print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-                with ThreadPoolExecutor(max_workers=30) as pool:
+                with ThreadPoolExecutor(max_workers=25) as pool:
                     all_task = []
                     for sw in range(self.dslot.sw_num):
                         # all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
