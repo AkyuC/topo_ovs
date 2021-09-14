@@ -42,13 +42,13 @@ if __name__ == "__main__":
     ctrl = controller(filePath)
     rt = rt_default(filePath + '/config')
 
-    with ThreadPoolExecutor(max_workers=30) as pool:
+    with ThreadPoolExecutor(max_workers=35) as pool:
         all_task = []
         for sw in range(66):
             # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
             all_task.append(pool.submit(sw_connect_ctrl_init, sw, ctrl.cslot.sw2ctrl[0][sw], ctrl.cslot.sw2ctrl_standby[0][sw]))
         wait(all_task, return_when=ALL_COMPLETED)
-    time.sleep(10)
+    time.sleep(5)
     for sw in range(66):
         os.system("sudo docker exec -it s{} ovs-vsctl show >> a.txt".format(sw))
 
@@ -56,42 +56,43 @@ if __name__ == "__main__":
     # # ctrl.processespool.join()
     time.sleep(10)
     
-    slot_no = 0   # 获取切换的时间片
-    print("第{}个时间片切换默认路由\n".format(slot_no))
-    rt_default.change_rt_default(len(ctrl.dslot.data_slot[0]), slot_no)
+    # slot_no = 0   # 获取切换的时间片
+    for slot_no in range(44):
+        print("第{}个时间片切换默认路由\n".format(slot_no))
+        rt_default.change_rt_default(len(ctrl.dslot.data_slot[0]), slot_no)
 
-    print("第{}个时间片切换，添加下一个时间片的控制器\n".format(slot_no))
-    ctrlslot.ctrl_change_add(ctrl.cslot, slot_no)
+        print("第{}个时间片切换，添加下一个时间片的控制器\n".format(slot_no))
+        ctrlslot.ctrl_change_add(ctrl.cslot, slot_no)
 
-    # for sw in range(66):
-    #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping1.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
-    
-    time.sleep(10)
+        # for sw in range(66):
+        #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping1.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
+        
+        time.sleep(10)
 
-    print("第{}个时间片切换，topo的链路修改".format(slot_no))
-    Thread(target=ctrl_get_slot_change, args=(slot_no, ctrl.cslot.ctrl_slot_stay[0],)).start()
-    swslot.sw_links_change(ctrl.dslot, slot_no)
+        print("第{}个时间片切换，topo的链路修改".format(slot_no))
+        Thread(target=ctrl_get_slot_change, args=(slot_no, ctrl.cslot.ctrl_slot_stay[slot_no],)).start()
+        swslot.sw_links_change(ctrl.dslot, slot_no)
 
-    time.sleep(10)
+        # time.sleep(10)
 
-    print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-    # for sw in range(66):
-    #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping2.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
-    with ThreadPoolExecutor(max_workers=30) as pool:
-        all_task = []
+        print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
+        # for sw in range(66):
+        #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping2.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
+        with ThreadPoolExecutor(max_workers=35) as pool:
+            all_task = []
+            for sw in range(66):
+                # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
+                all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[slot_no+1][sw], ctrl.cslot.sw2ctrl_standby[slot_no+1][sw]))
+            wait(all_task, return_when=ALL_COMPLETED)
+        
+        # time.sleep(10)
+
+        print("第{}个时间片切换，删除不需要的控制器和相关的路由\n\n\n".format(slot_no))
+        ctrlslot.ctrl_change_del(ctrl.cslot, slot_no)
+        rt_default.del_rt_default_ctrl(len(ctrl.dslot.data_slot[0]), slot_no)
+
+        time.sleep(10)
         for sw in range(66):
-            # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
-            all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[1][sw], ctrl.cslot.sw2ctrl_standby[1][sw]))
-        wait(all_task, return_when=ALL_COMPLETED)
-    
-    time.sleep(10)
-
-    print("第{}个时间片切换，删除不需要的控制器和相关的路由\n\n\n".format(slot_no))
-    ctrlslot.ctrl_change_del(ctrl.cslot, slot_no)
-    rt_default.del_rt_default_ctrl(len(ctrl.dslot.data_slot[0]), slot_no)
-
-    time.sleep(10)
-    for sw in range(66):
-        os.system("sudo docker exec -it s{} ovs-vsctl show >> b.txt".format(sw))
+            os.system("sudo docker exec -it s{} ovs-vsctl show >> slot{}.txt".format(sw, slot_no))
 
     print("end")

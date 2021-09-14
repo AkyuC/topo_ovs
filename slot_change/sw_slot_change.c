@@ -80,7 +80,7 @@ void* ctrl_connect(void* arg)
 	{
         if(ip_master && ip_standby)
         {
-            sprintf(command, "ping -c3 -i0.2 -W1 192.168.67.%d > /dev/null &", ip_master);
+            sprintf(command, "ping -c2 -i0.3 -W1 192.168.67.%d > /dev/null &", ip_master);
             if(system(command) != 0)
             {
                 if(pthread_mutex_trylock(&mutex) != 0)
@@ -93,7 +93,7 @@ void* ctrl_connect(void* arg)
                 ip_standby = ip_master;
                 ip_master = tmp;
                 pthread_mutex_unlock(&mutex);
-                sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:enable-flush=false", sw_no,ip_master,sw_no);
+                sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:disable-in-band=false;ovs-vsctl set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no,sw_no);
                 system(command);
             }
         }
@@ -105,6 +105,7 @@ void* ctrl_connect(void* arg)
 int main(int argc,char *argv[])
 {
     // 需要传入参数 1交换机编号 2主控制器编号 3备控制器编号
+    // 编译命令 /usr/bin/gcc-9 -g ./sw_slot_change.c ./sw_slot_change.h -o sw_slot_change -lpthread
     uint8_t buf[UDP_BUFF_LEN] = {'\0'};
     int i, tmp1, tmp2;
     struct sockaddr_in *clent_addr;
@@ -141,7 +142,7 @@ int main(int argc,char *argv[])
     ip_standby = atoi(argv[3]);
     pthread_mutex_unlock(&mutex);
 
-    sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:enable-flush=false", sw_no,ip_master,sw_no);
+    sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:disable-in-band=false;ovs-vsctl set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no,sw_no);
     system(command);
 
     // 创建控制器设置线程
@@ -159,6 +160,8 @@ int main(int argc,char *argv[])
 	{
         recvfrom(server_fd, buf, UDP_BUFF_LEN, 0, (struct sockaddr*)clent_addr, &len);
         // 收到的信息为主控制器编号 备控制器编号
+        pthread_cancel(pid);
+	    pthread_join(pid, NULL);
         i = 0;
         tmp1 = 0;
         tmp2 = 0;
@@ -185,15 +188,46 @@ int main(int argc,char *argv[])
                 break;
             }
         }
+        if(ip_master == tmp1)
+        {
+            if(ip_standby != tmp2)
+            {
+                pthread_mutex_lock(&mutex);
+                // ip_master = ctrl[0][slot_no];
+                // ip_standby = ctrl[1][slot_no];
+                ip_standby = tmp2;
+                pthread_mutex_unlock(&mutex);
+            }
+            continue;
+        }
         pthread_mutex_lock(&mutex);
         // ip_master = ctrl[0][slot_no];
         // ip_standby = ctrl[1][slot_no];
         ip_master = tmp1;
         ip_standby = tmp2;
-        sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:enable-flush=false", sw_no,ip_master,sw_no);
-        system(command);
         pthread_mutex_unlock(&mutex);
-        memset(buf, 0, 10);
+
+        sprintf(command, "ping -c2 -i0.3 -W1 192.168.67.%d > /dev/null &", ip_master);
+        if(system(command) != 0)
+        {
+            tmp1 = ip_standby;
+            ip_standby = ip_master;
+            ip_master = tmp1;
+        }
+        sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:disable-in-band=false;ovs-vsctl set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no,sw_no);
+        system(command);
+        memset(buf, 0, 20);
+
+        // 创建控制器设置线程
+        if(pthread_create(&pid, NULL, ctrl_connect, NULL) != 0)
+        {
+            printf("创建线程失败\n");
+            pthread_mutex_destroy(&mutex);
+            pthread_cancel(pid);
+            pthread_join(pid, NULL);
+            close(server_fd);
+            return -1;
+        }
 	}
 
     return 0;

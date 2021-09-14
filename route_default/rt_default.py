@@ -132,7 +132,7 @@ class rt_default:
         os.system("sudo chmod +x ./tmp.sh; ./tmp.sh")
 
     def config2sh(self):
-        with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             # 初始化的流表，转换为shell脚本
             all_task = []
             for sw in range(self.sw_num):
@@ -222,9 +222,9 @@ class rt_default:
                 #     dst = 67
                 # elif rt[0] == 3 or rt[0] == 6:
                 #     dst = 66
-                command = "ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                command = "ovs-ofctl add-flow s{} \"cookie=0,priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                command += "ovs-ofctl add-flow s{} \"cookie=0,priority=20,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # command = "ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.{}.{} action=output:{}\"\n"\
                 #     .format(sw,dst,rt[2]+1,rt[3])
@@ -258,7 +258,7 @@ class rt_default:
                     dst = 66
                 command = "ovs-ofctl del-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl del-flows s{} --strict \"priority=30,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
+                command += "ovs-ofctl del-flows s{} --strict \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # if sw == 0:
                 #     print("del:\n"+command)
@@ -289,9 +289,17 @@ class rt_default:
                     elif rt[0] == 6:
                         src = 66
                         dst = 66
-                    command = "ovs-ofctl mod-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                    # command = "ovs-ofctl mod-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                    #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    # command += "ovs-ofctl mod-flows s{} --strict \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                    #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command = "ovs-ofctl add-flow s{} \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                         .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                    command += "ovs-ofctl mod-flows s{} --strict \"priority=30,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                    command += "ovs-ofctl add-flow s{} \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command += "ovs-ofctl del-flows s{} --strict \"priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
+                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command += "ovs-ofctl del-flows s{} --strict \"priority=20,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
                         .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                     # if sw == 0:
                     #     print("del:\n"+command)
@@ -315,10 +323,18 @@ class rt_default:
                 elif rt[0] == 6:
                     src = 66
                     dst = 66
-                command = "ovs-ofctl mod-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                # command = "ovs-ofctl mod-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                # command += "ovs-ofctl mod-flows s{} --strict \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command = "ovs-ofctl add-flow s{} \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl mod-flows s{} --strict \"priority=30,arp,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                command += "ovs-ofctl add-flow s{} \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl del-flows s{} --strict \"priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
+                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl del-flows s{} --strict \"priority=20,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
+                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # if sw == 0:
                 #     print("del:\n"+command)
                 file.write(command)
@@ -341,9 +357,9 @@ class rt_default:
                 elif rt[0] == 6:
                     src = 66
                     dst = 66
-                command = "ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,ip,priority=20,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                command = "ovs-ofctl add-flow s{} \"cookie=0,ip,priority=20,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,arp,priority=20,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                command += "ovs-ofctl add-flow s{} \"cookie=0,arp,priority=20,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
                     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # if sw == 0:
                 #     print("del:\n"+command)
@@ -357,7 +373,7 @@ class rt_default:
 
     def load_rt_default(self):
         # 并发的下发所有默认流表
-        with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             for sw in range(self.sw_num):
                 all_task.append(pool.submit(rt_default.__load_rt_a_default, sw))
@@ -371,7 +387,7 @@ class rt_default:
 
     def del_rt_default(self, slot_no):
         # 时间片切换，删除不需要的流表
-        with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             for sw in range(self.sw_num):
                 all_task.append(pool.submit(rt_default.__del_rt_a_default, sw, slot_no))
@@ -389,7 +405,7 @@ class rt_default:
         # 时间片切换，删除控制器相关不需要的流表
         # for sw in range(sw_num):
         #     ppool.apply_async(rt_default.__del_rt_a_default_ctrl, (sw, slot_no,))
-        with ThreadPoolExecutor(max_workers=25) as pool:
+        with ThreadPoolExecutor(max_workers=35) as pool:
             all_task = []
             for sw in range(sw_num):
                 all_task.append(pool.submit(rt_default.__del_rt_a_default_ctrl, sw, slot_no))
@@ -405,7 +421,7 @@ class rt_default:
 
     def add_rt_default(self, slot_no):
         # 时间片切换，并发的下发修改所有默认流表
-        with ThreadPoolExecutor(max_workers=self.sw_num) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             for sw in range(self.sw_num):
                 all_task.append(pool.submit(rt_default.__add_rt_a_default, sw, slot_no))
@@ -419,7 +435,7 @@ class rt_default:
         # for sw in range(sw_num):
         #     ppool.apply_async(rt_default.__del_rt_a_default, (sw, slot_no,))
 
-        with ThreadPoolExecutor(max_workers=25) as pool:
+        with ThreadPoolExecutor(max_workers=35) as pool:
             all_task = []
             # for sw in range(sw_num):
             #     all_task.append(pool.submit(rt_default.__del_rt_a_default, sw, slot_no))

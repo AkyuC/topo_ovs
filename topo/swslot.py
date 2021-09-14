@@ -10,7 +10,7 @@ class swslot:
         self.diff_data = dict() # 存储不同时间片之间需要改变的链路信息
         self.filePath = filePath
         self.start(filePath)
-        with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             for sw in self.data_slot[0]:
                 all_task.append(pool.submit(swslot.docker_cp, sw, "{}/slot_change/sw_slot_change".format(os.path.dirname(os.path.dirname(__file__)))))
@@ -88,6 +88,9 @@ class swslot:
                 file.write("chmod +x /home/ovs_open.sh; ./home/ovs_open.sh > /dev/null\n")
                 file.write("ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other_config:datapath-id={}\n".format(
                         sw, sw, sw))
+                # file.write("echo 0 > /proc/sys/net/ipv4/ip_forward\n")
+                # file.write("echo 1 > /proc/sys/net/ipv4/conf/ovs-system/arp_ignore\n")
+                # file.write("echo 1 > /proc/sys/net/ipv4/conf/s{}/arp_ignore\n".format(sw))
                 file.write("ovs-vsctl set bridge s{} other_config:datapath-id={:016X}\n".format(sw,sw))
                 file.write("ovs-vsctl set bridge s{} other_config:enable-flush=false\n".format(sw))
                 file.write("ovs-vsctl set-fail-mode s{} secure\n".format(sw))
@@ -103,23 +106,27 @@ class swslot:
                 # file.write("ovs-vsctl set-controller s{} tcp:192.168.100.1:6653 -- set bridge s{} other_config:enable-flush=false\n"\
                 #     .format(sw, sw))
                 # file.write("sleep 10s\n")
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=10 action=drop\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=10 action=drop\"\n"\
                 #     .format(sw))
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=100,arp,nw_dst=192.168.10.1 action=drop\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=100,arp,nw_dst=192.168.10.1 action=drop\"\n"\
                 #     .format(sw))
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.66.{} action=output:{}\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,ip,nw_dst=192.168.66.{} action=output:{}\"\n"\
                 #     .format(sw, sw+1, sw+2000))
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_dst=192.168.66.{} action=output:{}\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,arp,nw_dst=192.168.66.{} action=output:{}\"\n"\
                 #     .format(sw, sw+1, sw+2000))
                 file.write("ifconfig s{} 192.168.66.{} netmask 255.255.0.0 up\n".format(sw, sw+1))
                 file.write("route add default dev s{}\n".format(sw))
                 file.write("ovs-vsctl set-controller s{} tcp:192.168.100.1:6653 -- set bridge s{} other_config:enable-flush=false\n"\
                     .format(sw, sw))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=10 action=drop\"\n"\
+                file.write("ovs-vsctl set bridge s{} other_config:disable-in-band=false\n".format(sw))
+                file.write("ovs-vsctl set controller s{} connection-mode=out-of-band\n".format(sw))
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=10,ip action=drop\"\n"\
                     .format(sw))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=10,arp action=drop\"\n"\
+                    .format(sw))
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
                     .format(sw, sw+1))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
                     .format(sw, sw+1))
                 for adj_sw in data[sw]:
                     p = "s{}-s{}".format(sw, adj_sw)
@@ -127,6 +134,7 @@ class swslot:
                         (adj_sw, sw, data[sw][adj_sw]) not in links_set:
                         links_set.add((sw, adj_sw, data[sw][adj_sw]))
                     file.write("ip link set dev {} up\n".format(p))
+                    # file.write("echo 1 > /proc/sys/net/ipv4/conf/{}/arp_ignore\n".format(p))
                     file.write("ovs-vsctl add-port s{} {} -- set interface {} ofport_request={}\n"\
                         .format(sw, p, p, adj_sw+1000))
                     # file.write("tc qdisc add dev {} root handle 5:0 hfsc default 1\n".format(p))
@@ -138,7 +146,7 @@ class swslot:
         with open(self.filePath + "/sw_shell/link_init.sh", 'w+') as file:
             for sw in data:
                 file.write("sudo docker start s{} > /dev/null\n".format(sw))
-                file.write("sudo docker exec -it s{} sysctl -p\n".format(sw))
+                # file.write("sudo docker exec -it s{} sysctl -p\n".format(sw))
                 # file.write("sudo docker exec -it s{} echo 0 > /proc/sys/net/ipv4/ip_forward\n".format(sw))
                 # file.write("sudo docker exec -it s{} echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore\n".format(sw))
             for link in links_set:
@@ -155,7 +163,7 @@ class swslot:
                 # file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[0], p1))
                 # file.write("sudo docker exec -it s{} ip link set dev {} up\n".format(link[1], p2))
 
-        with ThreadPoolExecutor(max_workers=len(self.diff_data[0])) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             for slot_no in range(self.slot_num):
                 all_task.clear()
@@ -243,7 +251,7 @@ class swslot:
         # 加载初始化拓扑
         os.system("sudo chmod +x {path}/sw_shell/link_init.sh;\
             sudo /bin/bash {path}/sw_shell/link_init.sh > /dev/null".format(path=self.filePath))
-        with ThreadPoolExecutor(max_workers=len(self.data_slot[0])) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             for sw in self.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_init, sw))
@@ -276,7 +284,7 @@ class swslot:
         # for sw in dslot.data_slot[0]:
         #     ppool.apply_async(swslot.__a_sw_links_change_add, (sw, slot_no,))
         # with ThreadPoolExecutor(max_workers=len(dslot.data_slot[0])+1) as pool:
-        with ThreadPoolExecutor(max_workers=25) as pool:
+        with ThreadPoolExecutor(max_workers=35) as pool:
             all_task = []
             for sw in dslot.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_change_dc, sw, slot_no))

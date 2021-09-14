@@ -14,7 +14,7 @@ class UdpServer:
     def __init__(self):
         #define the type of socket is IPv4 and Udp
         self.serverSocket = socket(AF_INET, SOCK_DGRAM)
-        self.serverSocket.bind(('', 12001))
+        self.serverSocket.bind(('127.0.0.1', 12001))
     
     def recv_msg(self):
         msg, addr = self.serverSocket.recvfrom(2048)
@@ -67,7 +67,7 @@ class controller:
         self.dbdata = dbload(filePath + '/config')
         # 加载时间片序列
         self.topotimer = timer(filePath + '/config/timeslot/timefile', 0, 8)
-        self.rttimer = timer(filePath + '/config/timeslot/timefile', 30, 9)
+        self.rttimer = timer(filePath + '/config/timeslot/timefile', 20, 9)
         # 加载指令
         load_command()
         self.status = False
@@ -84,7 +84,7 @@ class controller:
             if(command[0] == const_command.cli_run_topo):
                 print("开始运行topo!")
                 # # 设置卫星交换机连接控制器
-                with ThreadPoolExecutor(max_workers=25) as pool:
+                with ThreadPoolExecutor(max_workers=35) as pool:
                     all_task = []
                     for sw in range(self.dslot.sw_num):
                         # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
@@ -120,7 +120,7 @@ class controller:
                 swslot.sw_links_change(self.dslot, slot_no)
 
                 print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-                with ThreadPoolExecutor(max_workers=25) as pool:
+                with ThreadPoolExecutor(max_workers=35) as pool:
                     all_task = []
                     for sw in range(self.dslot.sw_num):
                         # all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 

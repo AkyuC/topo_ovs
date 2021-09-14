@@ -81,7 +81,7 @@ class ctrlslot:
             format(ctrl=ctrl, p1=p1, ctrl_port=3000+ctrl))
         file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,arp,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,arp,arp_tpa=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
         file.write("sudo docker exec -it c{ctrl} /bin/bash /home/openmul/mul.sh init\n"\
             .format(ctrl=ctrl))
@@ -95,7 +95,7 @@ class ctrlslot:
             .format(ctrl))
         file.write("sudo docker exec -it s{ctrl} ovs-ofctl del-flows s{ctrl} \"ip,nw_dst=192.168.67.{ctrl_ip}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl del-flows s{ctrl} \"arp,nw_dst=192.168.67.{ctrl_ip}\"\n" \
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl del-flows s{ctrl} \"arp,arp_tpa=192.168.67.{ctrl_ip}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1))
         file.write("sudo docker exec -it s{ctrl} ovs-vsctl del-port s{ctrl} s{ctrl}-c{ctrl}\n".\
             format(ctrl=ctrl))
