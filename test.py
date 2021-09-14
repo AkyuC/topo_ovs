@@ -78,11 +78,12 @@ if __name__ == "__main__":
         print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
         # for sw in range(66):
         #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping2.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
+        slot_next = (slot_no+1)%ctrl.cslot.slot_num
         with ThreadPoolExecutor(max_workers=35) as pool:
             all_task = []
             for sw in range(66):
                 # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
-                all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[slot_no+1][sw], ctrl.cslot.sw2ctrl_standby[slot_no+1][sw]))
+                all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[slot_next][sw], ctrl.cslot.sw2ctrl_standby[slot_next][sw]))
             wait(all_task, return_when=ALL_COMPLETED)
         
         # time.sleep(10)
