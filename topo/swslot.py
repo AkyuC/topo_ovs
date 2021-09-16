@@ -106,13 +106,13 @@ class swslot:
                 # file.write("ovs-vsctl set-controller s{} tcp:192.168.100.1:6653 -- set bridge s{} other_config:enable-flush=false\n"\
                 #     .format(sw, sw))
                 # file.write("sleep 10s\n")
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=10 action=drop\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"priority=10 action=drop\"\n"\
                 #     .format(sw))
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=100,arp,nw_dst=192.168.10.1 action=drop\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"priority=100,arp,nw_dst=192.168.10.1 action=drop\"\n"\
                 #     .format(sw))
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,ip,nw_dst=192.168.66.{} action=output:{}\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"priority=20,ip,nw_dst=192.168.66.{} action=output:{}\"\n"\
                 #     .format(sw, sw+1, sw+2000))
-                # file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,arp,nw_dst=192.168.66.{} action=output:{}\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"priority=20,arp,nw_dst=192.168.66.{} action=output:{}\"\n"\
                 #     .format(sw, sw+1, sw+2000))
                 file.write("ifconfig s{} 192.168.66.{} netmask 255.255.0.0 up\n".format(sw, sw+1))
                 file.write("route add default dev s{}\n".format(sw))
@@ -120,13 +120,17 @@ class swslot:
                     .format(sw, sw))
                 file.write("ovs-vsctl set bridge s{} other_config:disable-in-band=false\n".format(sw))
                 file.write("ovs-vsctl set controller s{} connection-mode=out-of-band\n".format(sw))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=10,ip action=drop\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=40,ip action=goto_table:1\"\n"\
                     .format(sw))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=10,arp action=drop\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=40,arp action=goto_table:1\"\n"\
                     .format(sw))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"table=1,priority=10,ip action=drop\"\n"\
+                    .format(sw))
+                file.write("ovs-ofctl add-flow s{} \"table=1,priority=10,arp action=drop\"\n"\
+                    .format(sw))
+                file.write("ovs-ofctl add-flow s{} \"table=1,priority=20,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
                     .format(sw, sw+1))
-                file.write("ovs-ofctl add-flow s{} \"cookie=0,priority=20,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"table=1,priority=20,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
                     .format(sw, sw+1))
                 for adj_sw in data[sw]:
                     p = "s{}-s{}".format(sw, adj_sw)

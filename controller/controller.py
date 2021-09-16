@@ -56,6 +56,11 @@ def ctrl_get_slot_change(slot_no, ctrl_list):
     for ctrl_no in ctrl_list:
         os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(ctrl_no, slot_no))
 
+def db_get_slot_change(slot_no, db_list):
+    for db_no in db_list:
+        os.system("sudo docker exec -it db{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(db_no, slot_no))
+
+
 class controller:
     def __init__(self, filePath:str) -> None:
         self.filePath = filePath
@@ -113,10 +118,12 @@ class controller:
             elif(command[0] ==  const_command.timer_diff):
                 slot_no = command[1]   # 获取切换的时间片序号
 
+                Thread(target=ctrl_get_slot_change, args=(slot_no, self.cslot.ctrl_slot_stay[slot_no],)).start()
+                Thread(target=db_get_slot_change, args=(slot_no, self.dbdata.db_data,)).start()
+
                 print("第{}个时间片切换，topo的链路修改".format(slot_no))
                 # Thread(target=run_shell, args=("{}/config/ctrl_shell/ctrl_restart_slot{}.sh > /dev/null"\
                 #     .format(self.filePath,slot_no),)).start()
-                Thread(target=ctrl_get_slot_change, args=(slot_no, self.cslot.ctrl_slot_stay[slot_no],)).start()
                 swslot.sw_links_change(self.dslot, slot_no)
 
                 print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))

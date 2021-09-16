@@ -79,9 +79,9 @@ class ctrlslot:
         # docker中的ovs连接端口
         file.write("sudo docker exec -it s{ctrl} ovs-vsctl add-port s{ctrl} {p1} -- set interface {p1} ofport_request={ctrl_port} > /dev/null\n".\
             format(ctrl=ctrl, p1=p1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"table=1,priority=20,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"cookie=0,idle_timeout=65535,priority=20,arp,arp_tpa=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"table=1,priority=20,arp,arp_tpa=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
         file.write("sudo docker exec -it c{ctrl} /bin/bash /home/openmul/mul.sh init\n"\
             .format(ctrl=ctrl))
