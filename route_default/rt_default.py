@@ -435,7 +435,7 @@ class rt_default:
         # for sw in range(sw_num):
         #     ppool.apply_async(rt_default.__del_rt_a_default, (sw, slot_no,))
 
-        with ThreadPoolExecutor(max_workers=45) as pool:
+        with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
             # for sw in range(sw_num):
             #     all_task.append(pool.submit(rt_default.__del_rt_a_default, sw, slot_no))

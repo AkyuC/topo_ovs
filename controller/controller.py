@@ -121,10 +121,11 @@ class controller:
                 slot_no = command[1]   # 获取切换的时间片序号
                 slot_next = (slot_no+1)%self.cslot.slot_num
 
-                Thread(target=controller.slot_change, args=(self,slot_next,)).start()
+                # Thread(target=controller.slot_change, args=(self,slot_next,)).start()
 
                 print("第{}个时间片切换，topo的链路修改 \n".format(slot_no))
                 swslot.sw_links_change(self.dslot, slot_no)
+                self.slot_change(slot_next)
 
                 # print("第{}个时间片切换，删除不需要的控制器和路由\n".format(slot_no))
                 ctrlslot.ctrl_change_del(self.cslot, slot_no)
@@ -164,8 +165,8 @@ class controller:
             for sw in range(self.dslot.sw_num):
                 # all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
                 all_task.append(pool.submit(sw_connect_ctrl, sw, self.cslot.sw2ctrl[slot_next][sw], self.cslot.sw2ctrl_standby[slot_next][sw]))
-                for ctrl_no in self.cslot.ctrl_slot[slot_next]:
-                    all_task.append(pool.submit(ctrl_get_slot_change, slot_next, ctrl_no))
-                for db_no in self.dbdata.db_data:
-                    all_task.append(pool.submit(db_get_slot_change, slot_next, db_no))
+            for ctrl_no in self.cslot.ctrl_slot[slot_next]:
+                all_task.append(pool.submit(ctrl_get_slot_change, slot_next, ctrl_no))
+            for db_no in self.dbdata.db_data:
+                all_task.append(pool.submit(db_get_slot_change, slot_next, db_no))
             wait(all_task, return_when=ALL_COMPLETED)

@@ -29,9 +29,12 @@ def run_shell(file):
     # print("run {}".format(file))
     os.system("sudo chmod +x {file}; sudo {file}".format(file=file))
 
-def ctrl_get_slot_change(slot_no, ctrl_list):
-    for ctrl_no in ctrl_list:
-        os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(ctrl_no, slot_no))
+def ctrl_get_slot_change(slot_no, ctrl_no):
+    os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(ctrl_no, slot_no))
+
+def db_get_slot_change(slot_no, db_no):
+    os.system("sudo docker exec -it db{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(db_no, slot_no))
+
 
 if __name__ == "__main__":
     #获取当前文件路径，读取配置文件需要
@@ -42,15 +45,19 @@ if __name__ == "__main__":
     ctrl = controller(filePath)
     rt = rt_default(filePath + '/config')
 
-    with ThreadPoolExecutor(max_workers=35) as pool:
+    with ThreadPoolExecutor(max_workers=66) as pool:
         all_task = []
-        for sw in range(66):
+        for sw in range(ctrl.dslot.sw_num):
             # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
             all_task.append(pool.submit(sw_connect_ctrl_init, sw, ctrl.cslot.sw2ctrl[0][sw], ctrl.cslot.sw2ctrl_standby[0][sw]))
+        for ctrl_no in ctrl.cslot.ctrl_slot[0]:
+            all_task.append(pool.submit(ctrl_get_slot_change, 0, ctrl_no))
+        for db_no in ctrl.dbdata.db_data:
+            all_task.append(pool.submit(db_get_slot_change, 0, db_no))
         wait(all_task, return_when=ALL_COMPLETED)
     time.sleep(5)
-    for sw in range(66):
-        os.system("sudo docker exec -it s{} ovs-vsctl show >> a.txt".format(sw))
+    # for sw in range(66):
+    #     os.system("sudo docker exec -it s{} ovs-vsctl show >> a.txt".format(sw))
 
     # ctrl.processespool.close()
     # # ctrl.processespool.join()
@@ -58,42 +65,29 @@ if __name__ == "__main__":
     
     # slot_no = 0   # 获取切换的时间片
     for slot_no in range(44):
-        print("第{}个时间片切换默认路由\n".format(slot_no))
+        print("第{}个时间片切换默认路由 {}".format(slot_no, time.time()))
         rt_default.change_rt_default(len(ctrl.dslot.data_slot[0]), slot_no)
 
-        print("第{}个时间片切换，添加下一个时间片的控制器\n".format(slot_no))
+        print("第{}个时间片切换，添加下一个时间片的控制器 {}".format(slot_no, time.time()))
         ctrlslot.ctrl_change_add(ctrl.cslot, slot_no)
 
-        # for sw in range(66):
-        #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping1.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
-        
-        time.sleep(10)
+        time.sleep(15)
 
-        print("第{}个时间片切换，topo的链路修改".format(slot_no))
-        Thread(target=ctrl_get_slot_change, args=(slot_no, ctrl.cslot.ctrl_slot_stay[slot_no],)).start()
+        slot_next = (slot_no+1)%ctrl.cslot.slot_num
+        print("第{}个时间片切换，删除不需要的控制器和路由 {}".format(slot_no, time.time()))
+        # Thread(target=controller.slot_change, args=(ctrl, slot_next,)).start()
+        ctrl.slot_change(slot_next)
+
+        print("第{}个时间片切换，topo的链路修改 {}\n\n".format(slot_no, time.time()))
         swslot.sw_links_change(ctrl.dslot, slot_no)
 
-        # time.sleep(10)
-
-        print("第{}个时间片切换，卫星交换机连接对于的控制器".format(slot_no))
-        # for sw in range(66):
-        #     os.system("sudo docker exec -it s{} ping -c 1 192.168.67.{} >> ping2.txt".format(sw, ctrl.cslot.sw2ctrl[1][sw]+1))
-        slot_next = (slot_no+1)%ctrl.cslot.slot_num
-        with ThreadPoolExecutor(max_workers=35) as pool:
-            all_task = []
-            for sw in range(66):
-                # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
-                all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[slot_next][sw], ctrl.cslot.sw2ctrl_standby[slot_next][sw]))
-            wait(all_task, return_when=ALL_COMPLETED)
-        
-        # time.sleep(10)
-
-        print("第{}个时间片切换，删除不需要的控制器和相关的路由\n\n\n".format(slot_no))
+        print("第{}个时间片切换，删除不需要的控制器和路由 {}".format(slot_no, time.time()))
         ctrlslot.ctrl_change_del(ctrl.cslot, slot_no)
+        print("第{}个时间片切换，删除不需要的控制器和路由 {}".format(slot_no, time.time()))
         rt_default.del_rt_default_ctrl(len(ctrl.dslot.data_slot[0]), slot_no)
 
         time.sleep(10)
-        for sw in range(66):
-            os.system("sudo docker exec -it s{} ovs-vsctl show >> slot{}.txt".format(sw, slot_no))
+        # for sw in range(66):
+        #     os.system("sudo docker exec -it s{} ovs-vsctl show >> slot{}.txt".format(sw, slot_no))
 
     print("end")
