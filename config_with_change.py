@@ -16,6 +16,13 @@ def load_db(filePath):
 
 if __name__ == "__main__":
     filePath = os.path.dirname(__file__)
+
+    if not os.path.exists(filePath + "/config/sw_shell"):
+        os.makedirs(filePath + "/config/sw_shell")
+    if not os.path.exists(filePath + "/config/ctrl_shell"):
+        os.makedirs(filePath + "/config/ctrl_shell")
+    if not os.path.exists(filePath + "/config/rt_shell"):
+        os.makedirs(filePath + "/config/rt_shell")
     # 初始化拓扑
     # 初始化卫星交换机和卫星交换机之间的连接
     sws = swslot(filePath + "/config")    
