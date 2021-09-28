@@ -188,18 +188,18 @@ int main(int argc,char *argv[])
                 break;
             }
         }
-        if(ip_master == tmp1)
-        {
-            if(ip_standby != tmp2)
-            {
-                pthread_mutex_lock(&mutex);
-                // ip_master = ctrl[0][slot_no];
-                // ip_standby = ctrl[1][slot_no];
-                ip_standby = tmp2;
-                pthread_mutex_unlock(&mutex);
-            }
-            continue;
-        }
+        // if(ip_master == tmp1)
+        // {
+        //     if(ip_standby != tmp2)
+        //     {
+        //         pthread_mutex_lock(&mutex);
+        //         // ip_master = ctrl[0][slot_no];
+        //         // ip_standby = ctrl[1][slot_no];
+        //         ip_standby = tmp2;
+        //         pthread_mutex_unlock(&mutex);
+        //     }
+        //     continue;
+        // }
         pthread_mutex_lock(&mutex);
         // ip_master = ctrl[0][slot_no];
         // ip_standby = ctrl[1][slot_no];
