@@ -52,6 +52,8 @@ class dbload:
             .format(filePath,db,db))
         os.system("sudo docker cp {}/db_conf/monitor{} $(sudo docker ps -aqf\"name=^db{}$\"):/home"\
             .format(filePath,db,db))
+        os.system("sudo docker cp {}/db_conf/dump.rdb $(sudo docker ps -aqf\"name=^db{}$\"):/"\
+            .format(filePath,db,db))
         os.system("sudo docker exec -it db{db} chmod +x /home/db{db}.sh".format(db=db))
         os.system("sudo docker exec -it db{db} /bin/bash /home/db{db}.sh start".format(db=db))
         os.system("sudo docker exec -it db{db} chmod +x /home/monitor{db}".format(db=db))
