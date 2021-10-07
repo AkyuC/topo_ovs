@@ -39,9 +39,9 @@ class dbload:
         # docker中的ovs连接端口
         os.system("sudo docker exec -it s{} ovs-vsctl add-port s{} {} -- set interface {} ofport_request={} > /dev/null".\
             format(db, db, p1, p1, 4000+db))
-        os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"table=1,priority=20,ip,nw_dst=192.168.68.{} action=output:{}\""\
+        os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"table=0,priority=100,ip,nw_dst=192.168.68.{} action=output:{}\""\
             .format(db, db, db+1, db+4000))
-        os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"table=1,priority=20,arp,arp_tpa=192.168.68.{} action=output:{}\""\
+        os.system("sudo docker exec -it s{} ovs-ofctl add-flow s{} \"table=0,priority=100,arp,arp_tpa=192.168.68.{} action=output:{}\""\
             .format(db, db, db+1, db+4000))
         # 分布式数据库的配置文件
         os.system("sudo docker cp {}/db_conf/db{}.sh $(sudo docker ps -aqf\"name=^db{}$\"):/home"\
@@ -52,7 +52,7 @@ class dbload:
             .format(filePath,db,db))
         os.system("sudo docker cp {}/db_conf/monitor{} $(sudo docker ps -aqf\"name=^db{}$\"):/home"\
             .format(filePath,db,db))
-        os.system("sudo docker cp {}/db_conf/dump.rdb $(sudo docker ps -aqf\"name=^db{}$\"):/"\
+        os.system("sudo docker cp {}/db_conf/dump.rdb $(sudo docker ps -aqf\"name=^db{}$\"):/var/lib/redis"\
             .format(filePath,db,db))
         os.system("sudo docker exec -it db{db} chmod +x /home/db{db}.sh".format(db=db))
         os.system("sudo docker exec -it db{db} /bin/bash /home/db{db}.sh start".format(db=db))

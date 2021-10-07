@@ -79,19 +79,19 @@ class ctrlslot:
         # docker中的ovs连接端口
         file.write("sudo docker exec -it s{ctrl} ovs-vsctl add-port s{ctrl} {p1} -- set interface {p1} ofport_request={ctrl_port} > /dev/null\n".\
             format(ctrl=ctrl, p1=p1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"table=1,priority=20,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"table=0,priority=100,ip,nw_dst=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n"\
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"table=1,priority=20,arp,arp_tpa=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
+        file.write("sudo docker exec -it s{ctrl} ovs-ofctl add-flow s{ctrl} \"table=0,priority=100,arp,arp_tpa=192.168.67.{ctrl_ip} action=output:{ctrl_port}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1, ctrl_port=3000+ctrl))
-        file.write("sudo docker exec -it c{ctrl} /bin/bash /home/openmul/mul.sh init\n"\
+        file.write("sudo docker exec -it c{ctrl} /bin/bash /usr/src/openmul/mul.sh init\n"\
             .format(ctrl=ctrl))
-        file.write("sudo docker exec -it c{ctrl} /bin/bash /home/openmul/mul.sh start mulhello\n"\
+        file.write("sudo docker exec -it c{ctrl} /bin/bash /usr/src/openmul/mul.sh start mulhello\n"\
             .format(ctrl=ctrl))
 
     @staticmethod
     def __config2sh_ctrl_del(ctrl, file):
         # 删除一个控制器
-        file.write("sudo docker exec -it c{} /bin/bash /home/openmul/mul.sh stop\n"\
+        file.write("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh stop\n"\
             .format(ctrl))
         file.write("sudo docker exec -it s{ctrl} ovs-ofctl del-flows s{ctrl} \"ip,nw_dst=192.168.67.{ctrl_ip}\"\n" \
             .format(ctrl=ctrl, ctrl_ip=ctrl+1))
@@ -122,9 +122,9 @@ class ctrlslot:
             #     for ctrl in self.ctrl_slot[slot_no]:
             #         if ctrl not in self.ctrl_slot_add[slot_no] and ctrl not in self.ctrl_slot_del[slot_no]:
             #             file.write("sudo docker exec c{} echo {} > /dev/udp/127.0.0.1/12000\n".format(ctrl, slot_no))
-                        # file.write("sudo docker exec -it c{} /bin/bash /home/openmul/mul.sh stop\n"\
+                        # file.write("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh stop\n"\
                         #     .format(ctrl))
-                        # file.write("sudo docker exec -it c{} /bin/bash /home/openmul/mul.sh start mulhello\n"\
+                        # file.write("sudo docker exec -it c{} /bin/bash /usr/src/openmul/mul.sh start mulhello\n"\
                         #     .format(ctrl))            
         #     datactrl = self.ctrl_slot[slot_no]
         #     for ctrl_no in datactrl:

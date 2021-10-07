@@ -1,1 +1,4 @@
 */__pycache__
+/config/ctrl_shell
+/config/rt_shell
+/config/sw_shell

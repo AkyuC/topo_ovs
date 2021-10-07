@@ -25,8 +25,8 @@ if __name__ == "__main__":
         os.makedirs(filePath + "/config/rt_shell")
     # 初始化拓扑
     # 初始化卫星交换机和卫星交换机之间的连接
+    os.system("/usr/bin/gcc-9 -g ./slot_change/sw_slot_change.c ./slot_change/sw_slot_change.h -o ./slot_change/sw_slot_change -lpthread > /dev/null")
     sws = swslot(filePath + "/config")    
-    os.system("sudo ovs-vsctl show > /dev/null")
     print("--生成链路连接sh脚本，并且复制到对应的docker当中")
     sws.config2sh()
     print("--启动卫星交换机对应的docker和ovs，并且加载第一个时间片的拓扑")

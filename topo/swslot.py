@@ -65,19 +65,28 @@ class swslot:
 
     def cpsh2docker(self):
         data = self.data_slot[0]
-        with open("./tmp.sh",'w+') as file:
+        with ThreadPoolExecutor(max_workers=66) as pool:
+            all_task = []
             for sw in data:
-                file.write("sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
-                    .format(self.filePath,sw,sw))
+                all_task.append(pool.submit(os.system, \
+                    "sudo docker cp {}/sw_shell/sw{}_link_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
+                    .format(self.filePath,sw,sw)))
+            wait(all_task, return_when=ALL_COMPLETED)
+            all_task.clear()
             for slot_no in range(self.slot_num):
                 for sw in self.diff_data[slot_no]:
                     filename = self.filePath + "/sw_shell/s{}_change_dc_slot{}.sh".format(sw,slot_no)
-                    file.write("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
+                    all_task.append(pool.submit(os.system, \
+                        "sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw)))
+                wait(all_task, return_when=ALL_COMPLETED)
+                all_task.clear()
                 for sw in self.diff_data[slot_no]:
                     filename = self.filePath + "/sw_shell/s{}_change_add_slot{}.sh".format(sw,slot_no)
-                    file.write("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw))
-        os.system("sudo chmod +x ./tmp.sh; ./tmp.sh")
-        os.system("sudo rm ./tmp.sh")
+                    all_task.append(pool.submit(os.system, \
+                        "sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home".format(filename,sw)))
+                wait(all_task, return_when=ALL_COMPLETED)
+                all_task.clear()
+
 
     def config2sh(self):
         links_set = set()
@@ -86,12 +95,12 @@ class swslot:
             with open(self.filePath + "/sw_shell/sw{}_link_init.sh".format(sw), 'w+') as file:
                 file.write("ip route flush table main\n".format(sw))
                 file.write("chmod +x /home/ovs_open.sh; ./home/ovs_open.sh > /dev/null\n")
-                file.write("ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 other_config:datapath-id={}\n".format(
+                file.write("ovs-vsctl add-br s{} -- set bridge s{} protocols=OpenFlow10,OpenFlow13 other_config:datapath-id={}\n".format(
                         sw, sw, sw))
                 # file.write("echo 0 > /proc/sys/net/ipv4/ip_forward\n")
                 # file.write("echo 1 > /proc/sys/net/ipv4/conf/ovs-system/arp_ignore\n")
                 # file.write("echo 1 > /proc/sys/net/ipv4/conf/s{}/arp_ignore\n".format(sw))
-                file.write("ovs-vsctl set bridge s{} other_config:datapath-id={:016X}\n".format(sw,sw))
+                file.write("ovs-vsctl set bridge s{} other_config:datapath-id={:016X}\n".format(sw,sw+1000))
                 file.write("ovs-vsctl set bridge s{} other_config:enable-flush=false\n".format(sw))
                 file.write("ovs-vsctl set-fail-mode s{} secure\n".format(sw))
                 # 添加本地端口和默认路由
@@ -120,18 +129,22 @@ class swslot:
                     .format(sw, sw))
                 file.write("ovs-vsctl set bridge s{} other_config:disable-in-band=false\n".format(sw))
                 file.write("ovs-vsctl set controller s{} connection-mode=out-of-band\n".format(sw))
-                file.write("ovs-ofctl add-flow s{} \"table=0,priority=40,ip action=goto_table:1\"\n"\
-                    .format(sw))
-                file.write("ovs-ofctl add-flow s{} \"table=0,priority=40,arp action=goto_table:1\"\n"\
+                # file.write("ovs-ofctl add-flow s{} \"table=0,priority=40,ip action=goto_table:1\"\n"\
+                #     .format(sw))
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=50 action=resubmit(,1)\"\n"\
                     .format(sw))
                 file.write("ovs-ofctl add-flow s{} \"table=1,priority=10,ip action=drop\"\n"\
                     .format(sw))
                 file.write("ovs-ofctl add-flow s{} \"table=1,priority=10,arp action=drop\"\n"\
                     .format(sw))
-                file.write("ovs-ofctl add-flow s{} \"table=1,priority=20,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=100,ip,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
                     .format(sw, sw+1))
-                file.write("ovs-ofctl add-flow s{} \"table=1,priority=20,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=100,arp,nw_dst=192.168.66.{} action=output:LOCAL\"\n"\
                     .format(sw, sw+1))
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=100,ip,nw_dst=192.168.100.1 action=drop\"\n"\
+                    .format(sw))
+                file.write("ovs-ofctl add-flow s{} \"table=0,priority=100,arp,nw_dst=192.168.100.1 action=drop\"\n"\
+                    .format(sw))
                 for adj_sw in data[sw]:
                     p = "s{}-s{}".format(sw, adj_sw)
                     if (sw, adj_sw, data[sw][adj_sw]) not in links_set and \
@@ -259,6 +272,10 @@ class swslot:
             all_task = []
             for sw in self.data_slot[0]:
                 all_task.append(pool.submit(swslot.__a_sw_links_init, sw))
+            wait(all_task, return_when=ALL_COMPLETED)
+            all_task.clear()
+            for sw in self.diff_data[0]:
+                all_task.append(pool.submit(os.system, "(sudo docker exec s{sw} /home/sw_slot_change {sw} &)".format(sw=sw)))
             wait(all_task, return_when=ALL_COMPLETED)
 
     @staticmethod

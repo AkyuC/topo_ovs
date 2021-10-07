@@ -119,17 +119,31 @@ class rt_default:
                 # count2 = 0
 
     def cpsh2docker(self):
-        with open("./tmp.sh",'w+') as file:
+        with ThreadPoolExecutor(max_workers=66) as pool:
+            all_task = []
             for sw in range(self.sw_num):
-                file.write("sudo docker cp {} $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
-                    .format(self.filePath + "/rt_shell/rt_s{}_init.sh".format(sw),sw))
+                all_task.append(pool.submit(os.system, \
+                    "sudo docker cp {}/rt_shell/rt_s{}_init.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home"\
+                    .format(self.filePath ,sw,sw)))
+            wait(all_task, return_when=ALL_COMPLETED)
+            all_task.clear()
             for slot_no in range(self.slot_num):
                 for sw in range(self.sw_num):
-                    file.write("sudo docker cp {}/rt_shell/rt_s{}_add_slot{}.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home".\
-                        format(self.filePath,sw, slot_no,sw))
-                    file.write("sudo docker cp {}/rt_shell/rt_s{}_del_slot{}.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home".\
-                        format(self.filePath,sw, slot_no,sw))
-        os.system("sudo chmod +x ./tmp.sh; ./tmp.sh")
+                    all_task.append(pool.submit(os.system, \
+                        "sudo docker cp {}/rt_shell/rt_s{}_add_slot{}.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home".\
+                        format(self.filePath,sw, slot_no,sw)))
+                    wait(all_task, return_when=ALL_COMPLETED)
+                    all_task.clear()
+                    all_task.append(pool.submit(os.system, \
+                        "sudo docker cp {}/rt_shell/rt_s{}_del_slot{}.sh $(sudo docker ps -aqf\"name=^s{}$\"):/home".\
+                        format(self.filePath,sw, slot_no,sw)))
+                    wait(all_task, return_when=ALL_COMPLETED)
+                    all_task.clear()
+                    all_task.append(pool.submit(os.system, \
+                        "sudo docker cp {}/rt_shell/rt_s{}_del_ctrl_slot{} $(sudo docker ps -aqf\"name=^s{}$\"):/home".\
+                        format(self.filePath,sw, slot_no,sw)))
+                    wait(all_task, return_when=ALL_COMPLETED)
+                    all_task.clear()
 
     def config2sh(self):
         with ThreadPoolExecutor(max_workers=66) as pool:
@@ -197,6 +211,8 @@ class rt_default:
         # 一个卫星交换机初始化的流表shell脚本转换
         with open(filename, 'w+') as file:
             file.write("\n")
+            table = 0
+            priority = 100
             for rt in dlist:
                 if rt[0] == 1:
                     src = 67
@@ -216,16 +232,18 @@ class rt_default:
                 elif rt[0] == 6:
                     src = 66
                     dst = 66
+                    table = 1
+                    priority = 20
                 # if rt[0] == 1 or rt[0] == 5:
                 #     dst = 68
                 # elif rt[0] == 2 or rt[0] == 4:
                 #     dst = 67
                 # elif rt[0] == 3 or rt[0] == 6:
                 #     dst = 66
-                command = "ovs-ofctl add-flow s{} \"table=1,priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl add-flow s{} \"table=1,priority=20,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command = "ovs-ofctl add-flow s{} \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                    .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl add-flow s{} \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                    .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # command = "ovs-ofctl add-flow s{} \"table=1,idle_timeout=65535,priority=20,ip,nw_dst=192.168.{}.{} action=output:{}\"\n"\
                 #     .format(sw,dst,rt[2]+1,rt[3])
                 # command += "ovs-ofctl add-flow s{} \"table=1,idle_timeout=65535,priority=20,arp,nw_dst=192.168.{}.{} action=output:{}\"\n"\
@@ -238,6 +256,8 @@ class rt_default:
         with open(filename, 'w+') as file:
             file.write("\n")
             for rt in dlist:
+                table = 0
+                priority = 100
                 if rt[0] == 1:
                     src = 67
                     dst = 68
@@ -256,10 +276,12 @@ class rt_default:
                 elif rt[0] == 6:
                     src = 66
                     dst = 66
-                command = "ovs-ofctl del-flows s{} --strict \"table=1,priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl del-flows s{} --strict \"table=1,priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    table = 1
+                    priority = 20
+                command = "ovs-ofctl del-flows s{} --strict \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
+                    .format(sw,table,priority+10,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl del-flows s{} --strict \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
+                    .format(sw,table,priority+10,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # if sw == 0:
                 #     print("del:\n"+command)
                 file.write(command)
@@ -270,6 +292,8 @@ class rt_default:
         with open(filename, 'w+') as file:
             file.write("\n")
             if dlist_ctrl is not None:
+                table = 0
+                priority = 100
                 for rt in dlist_ctrl:
                     if rt[0] == 1:
                         src = 67
@@ -289,22 +313,26 @@ class rt_default:
                     elif rt[0] == 6:
                         src = 66
                         dst = 66
+                        table = 1
+                        priority = 20
                     # command = "ovs-ofctl mod-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                     #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                     # command += "ovs-ofctl mod-flows s{} --strict \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
                     #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                    command = "ovs-ofctl add-flow s{} \"table=1,priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
-                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                    command += "ovs-ofctl add-flow s{} \"table=1,priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
-                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                    command += "ovs-ofctl del-flows s{} --strict \"table=1,priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
-                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                    command += "ovs-ofctl del-flows s{} --strict \"table=1,priority=20,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
-                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command = "ovs-ofctl add-flow s{} \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                        .format(sw,table,priority+10,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command += "ovs-ofctl add-flow s{} \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                        .format(sw,table,priority+10,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command += "ovs-ofctl del-flows s{} --strict \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
+                        .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    command += "ovs-ofctl del-flows s{} --strict \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
+                        .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
                     # if sw == 0:
                     #     print("del:\n"+command)
                     file.write(command)
             for rt in dlist:
+                table = 0
+                priority = 100
                 if rt[0] == 1:
                     src = 67
                     dst = 68
@@ -323,22 +351,26 @@ class rt_default:
                 elif rt[0] == 6:
                     src = 66
                     dst = 66
+                    table = 1
+                    priority = 20
                 # command = "ovs-ofctl mod-flows s{} --strict \"priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
                 #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # command += "ovs-ofctl mod-flows s{} --strict \"priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
                 #     .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command = "ovs-ofctl add-flow s{} \"table=1,priority=30,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl add-flow s{} \"table=1,priority=30,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl del-flows s{} --strict \"table=1,priority=20,ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
-                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl del-flows s{} --strict \"table=1,priority=20,arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
-                        .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command = "ovs-ofctl add-flow s{} \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                    .format(sw,table,priority+10,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl add-flow s{} \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                    .format(sw,table,priority+10,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl del-flows s{} --strict \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{}\"\n"\
+                        .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl del-flows s{} --strict \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{}\"\n"\
+                        .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # if sw == 0:
                 #     print("del:\n"+command)
                 file.write(command)
             for rt in alist:
+                table = 0
+                priority = 100
                 if rt[0] == 1:
                     src = 67
                     dst = 68
@@ -357,10 +389,12 @@ class rt_default:
                 elif rt[0] == 6:
                     src = 66
                     dst = 66
-                command = "ovs-ofctl add-flow s{} \"table=1,ip,priority=20,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
-                command += "ovs-ofctl add-flow s{} \"table=1,arp,priority=20,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
-                    .format(sw,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                    table = 1
+                    priority = 20
+                command = "ovs-ofctl add-flow s{} \"table={},priority={},ip,nw_src=192.168.{}.{},nw_dst=192.168.{}.{} action=output:{}\"\n"\
+                    .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
+                command += "ovs-ofctl add-flow s{} \"table={},priority={},arp,arp_spa=192.168.{}.{},arp_tpa=192.168.{}.{} action=output:{}\"\n"\
+                    .format(sw,table,priority,src,rt[1]+1,dst,rt[2]+1,rt[3])
                 # if sw == 0:
                 #     print("del:\n"+command)
                 file.write(command)

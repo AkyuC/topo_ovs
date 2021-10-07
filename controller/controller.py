@@ -45,7 +45,7 @@ def sw_connect_ctrl(sw, ip_master, ip_standby):
     # print("slot:{}, sw:{}".format(slot_no, sw))
     # os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
     #     .format(sw=sw, slot_no=slot_no))
-    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/localhost/12000\"".format(sw, ip_master+1, ip_standby+1))
+    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/192.168.66.{}/12000\"".format(sw, ip_master+1, ip_standby+1, sw+1))
 
 def run_shell(file):
     # 运行shell文件
@@ -53,10 +53,10 @@ def run_shell(file):
     os.system("sudo chmod +x {file}; sudo {file}".format(file=file))
 
 def ctrl_get_slot_change(slot_no, ctrl_no):
-    os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(ctrl_no, slot_no))
+    os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/192.168.67.{}/12000\"".format(ctrl_no, slot_no, ctrl_no+1))
 
 def db_get_slot_change(slot_no, db_no):
-    os.system("sudo docker exec -it db{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(db_no, slot_no))
+    os.system("sudo docker exec -it db{} /bin/bash -c \"echo {} > /dev/udp/192.168.68.{}/12000\"".format(db_no, slot_no, db_no+1))
 
 
 class controller:
@@ -89,13 +89,15 @@ class controller:
                 # # 设置卫星交换机连接控制器
                 with ThreadPoolExecutor(max_workers=66) as pool:
                     all_task = []
-                    for sw in range(self.dslot.sw_num):
-                        # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
-                        all_task.append(pool.submit(sw_connect_ctrl_init, sw, self.cslot.sw2ctrl[0][sw], self.cslot.sw2ctrl_standby[0][sw]))
                     for ctrl_no in self.cslot.ctrl_slot[0]:
                         all_task.append(pool.submit(ctrl_get_slot_change, 0, ctrl_no))
                     for db_no in self.dbdata.db_data:
                         all_task.append(pool.submit(db_get_slot_change, 0, db_no))
+                    wait(all_task, return_when=ALL_COMPLETED)
+                    all_task.clear()
+                    for sw in range(self.dslot.sw_num):
+                        # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
+                        all_task.append(pool.submit(sw_connect_ctrl_init, sw, self.cslot.sw2ctrl[0][sw], self.cslot.sw2ctrl_standby[0][sw]))
                     wait(all_task, return_when=ALL_COMPLETED)
                 print("启动定时器!")
                 self.topotimer.start()

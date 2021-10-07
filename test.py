@@ -22,7 +22,7 @@ def sw_connect_ctrl(sw, ip_master, ip_standby):
     # print("slot:{}, sw:{}".format(slot_no, sw))
     # os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
     #     .format(sw=sw, slot_no=slot_no))
-    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/localhost/12000\"".format(sw, ip_master+1, ip_standby+1))
+    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/127.0.0.1/12000\"".format(sw, ip_master+1, ip_standby+1))
 
 def run_shell(file):
     # 运行shell文件
@@ -30,10 +30,10 @@ def run_shell(file):
     os.system("sudo chmod +x {file}; sudo {file}".format(file=file))
 
 def ctrl_get_slot_change(slot_no, ctrl_no):
-    os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(ctrl_no, slot_no))
+    os.system("sudo docker exec -it c{} /bin/bash -c \"echo {} > /dev/udp/192.168.67.{}/12000\"".format(ctrl_no, slot_no, ctrl_no+1))
 
 def db_get_slot_change(slot_no, db_no):
-    os.system("sudo docker exec -it db{} /bin/bash -c \"echo {} > /dev/udp/127.0.0.1/12000\"".format(db_no, slot_no))
+    os.system("sudo docker exec -it db{} /bin/bash -c \"echo {} > /dev/udp/192.168.68.{}/12000\"".format(db_no, slot_no, db_no+1))
 
 
 if __name__ == "__main__":
@@ -47,21 +47,18 @@ if __name__ == "__main__":
 
     with ThreadPoolExecutor(max_workers=66) as pool:
         all_task = []
-        for sw in range(ctrl.dslot.sw_num):
-            # all_task.append(pool.submit(sw_connect_ctrl, sw, 0)) 
-            all_task.append(pool.submit(sw_connect_ctrl_init, sw, ctrl.cslot.sw2ctrl[0][sw], ctrl.cslot.sw2ctrl_standby[0][sw]))
+        for sw in range(ctrl.dslot.sw_num): 
+            all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[0][sw], ctrl.cslot.sw2ctrl_standby[0][sw]))
+        wait(all_task, return_when=ALL_COMPLETED)
         for ctrl_no in ctrl.cslot.ctrl_slot[0]:
             all_task.append(pool.submit(ctrl_get_slot_change, 0, ctrl_no))
+        wait(all_task, return_when=ALL_COMPLETED)
+    time.sleep(15)
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        all_task = []
         for db_no in ctrl.dbdata.db_data:
             all_task.append(pool.submit(db_get_slot_change, 0, db_no))
         wait(all_task, return_when=ALL_COMPLETED)
-    time.sleep(5)
-    # for sw in range(66):
-    #     os.system("sudo docker exec -it s{} ovs-vsctl show >> a.txt".format(sw))
-
-    # ctrl.processespool.close()
-    # # ctrl.processespool.join()
-    time.sleep(10)
     
     # slot_no = 0   # 获取切换的时间片
     for slot_no in range(44):
@@ -74,11 +71,11 @@ if __name__ == "__main__":
         time.sleep(15)
 
         slot_next = (slot_no+1)%ctrl.cslot.slot_num
-        print("第{}个时间片切换，删除不需要的控制器和路由 {}".format(slot_no, time.time()))
+        print("第{}个时间片切换 {}".format(slot_no, time.time()))
         # Thread(target=controller.slot_change, args=(ctrl, slot_next,)).start()
         ctrl.slot_change(slot_next)
 
-        print("第{}个时间片切换，topo的链路修改 {}\n\n".format(slot_no, time.time()))
+        print("topo的链路修改 {}\n\n".format(slot_no, time.time()))
         swslot.sw_links_change(ctrl.dslot, slot_no)
 
         print("第{}个时间片切换，删除不需要的控制器和路由 {}".format(slot_no, time.time()))
