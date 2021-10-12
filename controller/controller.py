@@ -70,7 +70,7 @@ class controller:
         self.dbdata = dbload(filePath + '/config')
         # 加载时间片序列
         self.topotimer = timer(filePath + '/config/timeslot/timefile', 0, 8)
-        self.rttimer = timer(filePath + '/config/timeslot/timefile', 20, 9)
+        self.rttimer = timer(filePath + '/config/timeslot/timefile', 50, 9)
         # 加载指令
         load_command()
         self.status = False
@@ -164,11 +164,15 @@ class controller:
         # 时间片切换,slot_next是下一个时间片的序号
         with ThreadPoolExecutor(max_workers=66) as pool:
             all_task = []
+            for ctrl_no in self.cslot.ctrl_slot[slot_next]:
+                all_task.append(pool.submit(ctrl_get_slot_change, slot_next, ctrl_no))
+            wait(all_task, return_when=ALL_COMPLETED)
+            all_task.clear()
             for sw in range(self.dslot.sw_num):
                 # all_task.append(pool.submit(sw_connect_ctrl, sw, slot_no+1)) 
                 all_task.append(pool.submit(sw_connect_ctrl, sw, self.cslot.sw2ctrl[slot_next][sw], self.cslot.sw2ctrl_standby[slot_next][sw]))
-            for ctrl_no in self.cslot.ctrl_slot[slot_next]:
-                all_task.append(pool.submit(ctrl_get_slot_change, slot_next, ctrl_no))
+            wait(all_task, return_when=ALL_COMPLETED)
+            all_task.clear()
             for db_no in self.dbdata.db_data:
                 all_task.append(pool.submit(db_get_slot_change, slot_next, db_no))
             wait(all_task, return_when=ALL_COMPLETED)

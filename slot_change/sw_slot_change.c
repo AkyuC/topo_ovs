@@ -19,6 +19,8 @@ int listen_init(void)
     // 初始化监听套接字
     int ret;
     struct sockaddr_in ser_addr;
+    char ip[20] = {'\0'};
+    sprintf(ip, "192.168.66.%d", sw_no+1);
 
     server_fd = socket(AF_INET, SOCK_DGRAM, 0); //AF_INET:IPV4;SOCK_DGRAM:UDP
     if(server_fd < 0)
@@ -29,7 +31,7 @@ int listen_init(void)
 
     memset(&ser_addr, 0, sizeof(ser_addr));
     ser_addr.sin_family = AF_INET;
-    ser_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); //IP地址，需要进行网络序转换，INADDR_ANY：本地地址
+    ser_addr.sin_addr.s_addr = inet_addr(ip); //IP地址，需要进行网络序转换，INADDR_ANY：本地地址
     ser_addr.sin_port = htons(SERVER_PORT);  //端口号，需要网络序转换
 
     ret = bind(server_fd, (struct sockaddr*)&ser_addr, sizeof(ser_addr));
@@ -64,7 +66,7 @@ void* ctrl_connect(void* arg)
                 ip_standby = ip_master;
                 ip_master = tmp;
                 pthread_mutex_unlock(&mutex);
-                sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:disable-in-band=false;ovs-vsctl set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no,sw_no);
+                sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no);
                 system(command);
             }
         }
@@ -86,12 +88,12 @@ int main(int argc,char *argv[])
     
     if(argc <= 0)return -1;
     // 初始化
+    sw_no = atoi(argv[1]);
     if(listen_init() != 0)
     {
         printf("套接字初始化失败\n"); 
         return -1;
     }
-    sw_no = atoi(argv[1]);
     if(pthread_mutex_init(&mutex, NULL) != 0)
     {
         printf("线程锁初始化失败\n");
@@ -132,7 +134,7 @@ int main(int argc,char *argv[])
     ip_standby = tmp2;
     pthread_mutex_unlock(&mutex);
 
-    sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:disable-in-band=false;ovs-vsctl set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no,sw_no);
+    sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no);
     system(command);
 
     // 创建控制器设置线程
@@ -181,7 +183,7 @@ int main(int argc,char *argv[])
         ip_standby = tmp2;
         pthread_mutex_unlock(&mutex);
 
-        sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set bridge s%d other_config:disable-in-band=false;ovs-vsctl set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no,sw_no);
+        sprintf(command, "ovs-vsctl set-controller s%d tcp:192.168.67.%d:6653 -- set controller s%d connection-mode=out-of-band", sw_no,ip_master,sw_no);
         system(command);
 
         sprintf(command, "ping -c2 -i0.1 -W1 192.168.67.%d > /dev/null &", ip_master);

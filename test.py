@@ -22,7 +22,7 @@ def sw_connect_ctrl(sw, ip_master, ip_standby):
     # print("slot:{}, sw:{}".format(slot_no, sw))
     # os.system("sudo docker exec -it s{sw} chmod +x /home/sw{sw}_standby_slot{slot_no}.sh;sudo docker exec -it s{sw} /bin/bash /home/sw{sw}_standby_slot{slot_no}.sh"\
     #     .format(sw=sw, slot_no=slot_no))
-    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/127.0.0.1/12000\"".format(sw, ip_master+1, ip_standby+1))
+    os.system("sudo docker exec -it s{} /bin/bash -c \"echo {} {} > /dev/udp/192.168.66.{}/12000\"".format(sw, ip_master+1, ip_standby+1, sw+1))
 
 def run_shell(file):
     # 运行shell文件
@@ -47,18 +47,21 @@ if __name__ == "__main__":
 
     with ThreadPoolExecutor(max_workers=66) as pool:
         all_task = []
-        for sw in range(ctrl.dslot.sw_num): 
-            all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[0][sw], ctrl.cslot.sw2ctrl_standby[0][sw]))
-        wait(all_task, return_when=ALL_COMPLETED)
         for ctrl_no in ctrl.cslot.ctrl_slot[0]:
             all_task.append(pool.submit(ctrl_get_slot_change, 0, ctrl_no))
         wait(all_task, return_when=ALL_COMPLETED)
-    time.sleep(15)
+        all_task.clear()
+        for sw in range(ctrl.dslot.sw_num): 
+            all_task.append(pool.submit(sw_connect_ctrl, sw, ctrl.cslot.sw2ctrl[0][sw], ctrl.cslot.sw2ctrl_standby[0][sw]))
+        wait(all_task, return_when=ALL_COMPLETED)
     with ThreadPoolExecutor(max_workers=10) as pool:
         all_task = []
         for db_no in ctrl.dbdata.db_data:
             all_task.append(pool.submit(db_get_slot_change, 0, db_no))
         wait(all_task, return_when=ALL_COMPLETED)
+    time.sleep(50)
+    # for sw in range(66):
+    #     os.system("sudo docker exec -it s{} ovs-vsctl show >> slot{}.txt".format(sw, 0))
     
     # slot_no = 0   # 获取切换的时间片
     for slot_no in range(44):
@@ -68,11 +71,12 @@ if __name__ == "__main__":
         print("第{}个时间片切换，添加下一个时间片的控制器 {}".format(slot_no, time.time()))
         ctrlslot.ctrl_change_add(ctrl.cslot, slot_no)
 
-        time.sleep(15)
+        time.sleep(25)
 
         slot_next = (slot_no+1)%ctrl.cslot.slot_num
         print("第{}个时间片切换 {}".format(slot_no, time.time()))
         # Thread(target=controller.slot_change, args=(ctrl, slot_next,)).start()
+
         ctrl.slot_change(slot_next)
 
         print("topo的链路修改 {}\n\n".format(slot_no, time.time()))
@@ -83,7 +87,7 @@ if __name__ == "__main__":
         print("第{}个时间片切换，删除不需要的控制器和路由 {}".format(slot_no, time.time()))
         rt_default.del_rt_default_ctrl(len(ctrl.dslot.data_slot[0]), slot_no)
 
-        time.sleep(10)
+        time.sleep(50)
         # for sw in range(66):
         #     os.system("sudo docker exec -it s{} ovs-vsctl show >> slot{}.txt".format(sw, slot_no))
 
